@@ -39,6 +39,10 @@ export class SourcesRepo {
     `).run(input.name, input.url, domain, input.type, input.category ?? null);
   }
 
+  getAll(): Source[] {
+    return this.db.prepare('SELECT * FROM sources ORDER BY name').all() as Source[];
+  }
+
   getEnabled(): Source[] {
     return this.db.prepare('SELECT * FROM sources WHERE enabled = 1 ORDER BY name').all() as Source[];
   }
