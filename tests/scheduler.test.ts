@@ -25,13 +25,14 @@ describe('Scheduler', () => {
         insertIfNew: vi.fn().mockReturnValue({ id: 1, title: 'New Item' }),
         updateClassification: vi.fn(),
         getUnpublished: vi.fn().mockReturnValue([]),
+        saveSummary: vi.fn(),
       },
       linksRepo: {},
       usageRepo: { canUseAI: vi.fn().mockReturnValue(true) },
       feedbackRepo: { getSourceScores: vi.fn().mockReturnValue([]) },
       collectors: new Map(),
       heuristicClassifier: new HeuristicClassifier(),
-      aiClassifier: { classify: vi.fn().mockResolvedValue({ category: 'ai', contentType: 'article' }) },
+      aiClassifier: { classify: vi.fn().mockResolvedValue({ category: 'ai', contentType: 'article' }), generateSummary: vi.fn().mockResolvedValue(null) },
       publishQueue: { enqueue: vi.fn(), updateSourceScores: vi.fn() },
       publisher: { sendNotification: vi.fn() },
       discoveryDigest: { sendWeeklyDigest: vi.fn() },
@@ -122,6 +123,47 @@ describe('Scheduler', () => {
     await (scheduler as any).runCollector('rss');
 
     expect(mockDeps.sourcesRepo.recordFetchError).not.toHaveBeenCalled();
+  });
+
+  it('generates summary for long articles after classification', async () => {
+    const saveSummarySpy = vi.spyOn(mockDeps.itemsRepo, 'saveSummary');
+    vi.spyOn(mockDeps.aiClassifier, 'generateSummary').mockResolvedValue('Резюме статті.');
+    vi.spyOn(mockDeps.heuristicClassifier, 'classify').mockReturnValue({
+      category: 'it', contentType: 'article', confidence: 0.3,
+    });
+
+    const collected = {
+      externalId: 'sum-test-1',
+      url: 'https://example.com/long',
+      title: 'Long Title',
+      contentSnippet: 'snippet text here',
+      wordCount: 600,
+      meta: {},
+    } as any;
+
+    scheduler = new Scheduler(mockDeps);
+    await (scheduler as any).classifyItem(1, collected, { id: 1, name: 'Test', type: 'rss', category: 'it' });
+
+    expect(saveSummarySpy).toHaveBeenCalledWith(1, 'Резюме статті.');
+  });
+
+  it('does not generate summary for short articles', async () => {
+    const saveSummarySpy = vi.spyOn(mockDeps.itemsRepo, 'saveSummary');
+    vi.spyOn(mockDeps.aiClassifier, 'generateSummary').mockResolvedValue('Summary.');
+
+    const collected = {
+      externalId: 'sum-test-2',
+      url: 'https://example.com/short',
+      title: 'Short Title',
+      contentSnippet: 'brief',
+      wordCount: 200,
+      meta: {},
+    } as any;
+
+    scheduler = new Scheduler(mockDeps);
+    await (scheduler as any).classifyItem(1, collected, { id: 1, name: 'Test', type: 'rss', category: 'it' });
+
+    expect(saveSummarySpy).not.toHaveBeenCalled();
   });
 
   it('updates source scores before enqueuing in publishPending', async () => {

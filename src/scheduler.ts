@@ -211,31 +211,42 @@ export class Scheduler {
         classifiedBy: 'heuristic',
         score: heuristic.confidence,
       });
-      return;
+    } else {
+      // Fallback to AI
+      const aiResult = await this.deps.aiClassifier.classify({
+        title: collected.title,
+        sourceName: source.name,
+        snippet: collected.contentSnippet ?? collected.title,
+      });
+
+      if (aiResult) {
+        this.deps.itemsRepo.updateClassification(itemId, {
+          category: aiResult.category,
+          contentType: aiResult.contentType,
+          classifiedBy: 'ai',
+          score: 0.8,
+        });
+      } else {
+        // AI unavailable — use heuristic even with low confidence
+        this.deps.itemsRepo.updateClassification(itemId, {
+          category: heuristic.category,
+          contentType: heuristic.contentType,
+          classifiedBy: 'heuristic',
+          score: heuristic.confidence,
+        });
+      }
     }
 
-    // Fallback to AI
-    const aiResult = await this.deps.aiClassifier.classify({
-      title: collected.title,
-      sourceName: source.name,
-      snippet: collected.contentSnippet ?? collected.title,
-    });
-
-    if (aiResult) {
-      this.deps.itemsRepo.updateClassification(itemId, {
-        category: aiResult.category,
-        contentType: aiResult.contentType,
-        classifiedBy: 'ai',
-        score: 0.8,
+    // Generate summary for long-form content
+    if ((collected.wordCount ?? 0) > 400) {
+      const summary = await this.deps.aiClassifier.generateSummary({
+        url: collected.url,
+        snippet: collected.contentSnippet ?? collected.title,
+        title: collected.title,
       });
-    } else {
-      // AI unavailable — use heuristic even with low confidence
-      this.deps.itemsRepo.updateClassification(itemId, {
-        category: heuristic.category,
-        contentType: heuristic.contentType,
-        classifiedBy: 'heuristic',
-        score: heuristic.confidence,
-      });
+      if (summary) {
+        this.deps.itemsRepo.saveSummary(itemId, summary);
+      }
     }
   }
 
