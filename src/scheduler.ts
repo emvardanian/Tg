@@ -13,6 +13,7 @@ import type { TelegramPublisher } from './publisher/telegram.publisher.js';
 import type { DiscoveryDigest } from './discovery/discovery-digest.js';
 import { processLinks } from './discovery/link-graph.js';
 import { formatDigest } from './publisher/digest-formatter.js';
+import { backupDatabase } from './backup.js';
 import { logger } from './logger.js';
 
 interface SchedulerDeps {
@@ -30,6 +31,7 @@ interface SchedulerDeps {
   adminChatId: string;
   monthlyLimitUsd: number;
   digestMode: 'daily' | 'realtime';
+  dbPath: string;
 }
 
 export class Scheduler {
@@ -80,6 +82,9 @@ export class Scheduler {
 
     // Cost report: Friday at 20:00
     this.tasks.push(cron.schedule('0 20 * * 5', () => this.sendCostReport()));
+
+    // Database backup: daily at 03:00
+    this.tasks.push(cron.schedule('0 3 * * *', () => backupDatabase(this.deps.dbPath)));
 
     // Publish queue: every 5 minutes
     this.tasks.push(cron.schedule('*/5 * * * *', () => this.publishPending()));

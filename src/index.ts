@@ -129,6 +129,7 @@ async function main(): Promise<void> {
     adminChatId: config.telegram.adminChatId,
     monthlyLimitUsd: config.anthropic.monthlyLimitUsd,
     digestMode: config.digest.mode,
+    dbPath: config.db.path,
   });
 
   // Init health server
