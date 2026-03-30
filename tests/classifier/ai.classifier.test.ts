@@ -10,6 +10,10 @@ vi.mock('@anthropic-ai/sdk', () => ({
   },
 }));
 
+vi.mock('@extractus/article-extractor', () => ({
+  extract: vi.fn(),
+}));
+
 describe('AiClassifier', () => {
   let mockUsageRepo: UsageRepo;
 
@@ -63,5 +67,35 @@ describe('AiClassifier', () => {
     });
 
     expect(result).toBeNull();
+  });
+
+  describe('generateSummary', () => {
+    it('returns null when budget is exhausted', async () => {
+      (mockUsageRepo.canUseAI as ReturnType<typeof vi.fn>).mockReturnValue(false);
+
+      const classifier = new AiClassifier('fake-key', mockUsageRepo, 5);
+      const result = await classifier.generateSummary({
+        url: 'https://example.com/article',
+        snippet: 'Some snippet',
+        title: 'Some title',
+      });
+
+      expect(result).toBeNull();
+      expect(mockCreate).not.toHaveBeenCalled();
+    });
+
+    it('returns null when article extraction fails', async () => {
+      const { extract } = await import('@extractus/article-extractor');
+      (extract as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Extraction failed'));
+
+      const classifier = new AiClassifier('fake-key', mockUsageRepo, 5);
+      const result = await classifier.generateSummary({
+        url: 'https://example.com/article',
+        snippet: 'Some snippet',
+        title: 'Some title',
+      });
+
+      expect(result).toBeNull();
+    });
   });
 });

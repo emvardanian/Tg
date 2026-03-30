@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { extract } from '@extractus/article-extractor';
 import type { UsageRepo } from '../storage/repositories/usage.repo.js';
 import { calculateCost } from '../pricing.js';
 import { logger } from '../logger.js';
@@ -12,6 +13,12 @@ interface AiClassifyInput {
 interface AiClassifyResult {
   category: string;
   contentType: string;
+}
+
+interface GenerateSummaryInput {
+  url: string;
+  snippet: string;
+  title: string;
 }
 
 export class AiClassifier {
@@ -70,7 +77,6 @@ export class AiClassifier {
 
       const parsed = toolBlock.input as AiClassifyResult;
 
-      // Log usage
       const costUsd = calculateCost(response.usage.input_tokens, response.usage.output_tokens);
 
       this.usageRepo.log({
@@ -82,6 +88,44 @@ export class AiClassifier {
       return parsed;
     } catch (err) {
       logger.error('AI classification failed', { error: (err as Error).message });
+      return null;
+    }
+  }
+
+  async generateSummary(input: GenerateSummaryInput): Promise<string | null> {
+    if (!this.usageRepo.canUseAI(this.monthlyLimitUsd)) {
+      logger.warn('AI budget exhausted, skipping summary generation');
+      return null;
+    }
+
+    try {
+      const article = await extract(input.url);
+      const text = article?.content ?? input.snippet ?? input.title;
+
+      const response = await this.client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        messages: [
+          {
+            role: 'user',
+            content: `Summarize this article in 3-5 sentences in Ukrainian:\n\n${text.slice(0, 4000)}`,
+          },
+        ],
+      });
+
+      const summary = response.content[0].type === 'text' ? response.content[0].text : null;
+      if (!summary) return null;
+
+      const costUsd = calculateCost(response.usage.input_tokens, response.usage.output_tokens);
+      this.usageRepo.log({
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+        costUsd,
+      });
+
+      return summary;
+    } catch (err) {
+      logger.error('Summary generation failed', { url: input.url, error: (err as Error).message });
       return null;
     }
   }
