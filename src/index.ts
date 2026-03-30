@@ -22,6 +22,7 @@ import { TelegramPublisher } from './publisher/telegram.publisher.js';
 import { PublishQueue } from './publisher/queue.js';
 import { DiscoveryDigest } from './discovery/discovery-digest.js';
 import { Scheduler } from './scheduler.js';
+import { createHealthServer } from './health.js';
 import { logger } from './logger.js';
 
 async function main(): Promise<void> {
@@ -130,6 +131,13 @@ async function main(): Promise<void> {
     digestMode: config.digest.mode,
   });
 
+  // Init health server
+  const healthPort = parseInt(process.env.HEALTH_PORT ?? '3000', 10);
+  const healthServer = createHealthServer({
+    db, sourcesRepo, usageRepo, publishQueue,
+    dbPath: config.db.path, startTime: Date.now(),
+  }, healthPort);
+
   // Start
   scheduler.start();
   publishQueue.start();
@@ -158,6 +166,9 @@ async function main(): Promise<void> {
 
     // 4. Close database
     db.close();
+
+    // 5. Close health server
+    healthServer.close();
 
     logger.info('Shutdown complete');
     process.exit(0);
