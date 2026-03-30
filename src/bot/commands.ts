@@ -1,10 +1,12 @@
 import type { Bot } from 'grammy';
+import type { Database } from '../storage/db.js';
 import type { SourcesRepo } from '../storage/repositories/sources.repo.js';
 import type { ItemsRepo } from '../storage/repositories/items.repo.js';
 import type { UsageRepo } from '../storage/repositories/usage.repo.js';
 import { extractDomain } from '../url.js';
 
 interface CommandDeps {
+  db: Database;
   sourcesRepo: SourcesRepo;
   itemsRepo: ItemsRepo;
   usageRepo: UsageRepo;
@@ -12,7 +14,7 @@ interface CommandDeps {
 }
 
 export function registerCommands(bot: Bot, deps: CommandDeps): void {
-  const { sourcesRepo, itemsRepo, usageRepo, adminChatId } = deps;
+  const { db, sourcesRepo, itemsRepo, usageRepo, adminChatId } = deps;
 
   // Only allow admin
   bot.use(async (ctx, next) => {
@@ -116,5 +118,32 @@ export function registerCommands(bot: Bot, deps: CommandDeps): void {
       `\u{1F4B0} \u0412\u0438\u0442\u0440\u0430\u0442\u0438 \u0437\u0430 \u043c\u0456\u0441\u044f\u0446\u044c:\n` +
       `$${monthlySpend.toFixed(4)} / $${limit.toFixed(2)} (${((monthlySpend / limit) * 100).toFixed(1)}%)`
     );
+  });
+
+  bot.command('saved', async (ctx) => {
+    const arg = ctx.match?.trim();
+
+    if (arg === 'clear') {
+      db.prepare('DELETE FROM saved_items').run();
+      await ctx.reply('🗑 Збережені елементи очищено');
+      return;
+    }
+
+    const saved = db.prepare(`
+      SELECT i.title, i.url FROM saved_items si
+      JOIN items i ON si.item_id = i.id
+      ORDER BY si.saved_at DESC LIMIT 20
+    `).all() as Array<{ title: string; url: string }>;
+
+    if (saved.length === 0) {
+      await ctx.reply('📭 Немає збережених елементів');
+      return;
+    }
+
+    const lines = saved.map((s, i) => `${i + 1}. [${s.title}](${s.url})`);
+    await ctx.reply(`🔖 Збережені (${saved.length}):\n\n${lines.join('\n')}`, {
+      parse_mode: 'Markdown',
+      link_preview_options: { is_disabled: true },
+    });
   });
 }

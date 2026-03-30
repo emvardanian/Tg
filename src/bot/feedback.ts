@@ -1,4 +1,5 @@
 import type { Bot } from 'grammy';
+import type { Database } from '../storage/db.js';
 import type { FeedbackRepo } from '../storage/repositories/feedback.repo.js';
 import type { ItemsRepo } from '../storage/repositories/items.repo.js';
 import type { UsageRepo } from '../storage/repositories/usage.repo.js';
@@ -8,6 +9,7 @@ import { calculateCost } from '../pricing.js';
 import { logger } from '../logger.js';
 
 interface FeedbackDeps {
+  db: Database;
   feedbackRepo: FeedbackRepo;
   itemsRepo: ItemsRepo;
   usageRepo: UsageRepo;
@@ -16,7 +18,7 @@ interface FeedbackDeps {
 }
 
 export function registerFeedback(bot: Bot, deps: FeedbackDeps): void {
-  const { feedbackRepo, itemsRepo, usageRepo, anthropicApiKey, monthlyLimitUsd } = deps;
+  const { db, feedbackRepo, itemsRepo, usageRepo, anthropicApiKey, monthlyLimitUsd } = deps;
   const anthropicClient = new Anthropic({ apiKey: anthropicApiKey });
 
   bot.callbackQuery(/^vote:(\d+):(up|down)$/, async (ctx) => {
@@ -26,6 +28,12 @@ export function registerFeedback(bot: Bot, deps: FeedbackDeps): void {
 
     feedbackRepo.add(itemId, score as 1 | -1);
     await ctx.answerCallbackQuery({ text: direction === 'up' ? '\u{1F44D}' : '\u{1F44E}' });
+  });
+
+  bot.callbackQuery(/^save:(\d+)$/, async (ctx) => {
+    const itemId = parseInt(ctx.match![1], 10);
+    db.prepare('INSERT OR IGNORE INTO saved_items (item_id) VALUES (?)').run(itemId);
+    await ctx.answerCallbackQuery({ text: '🔖 Збережено' });
   });
 
   bot.callbackQuery(/^summarize:(\d+)$/, async (ctx) => {

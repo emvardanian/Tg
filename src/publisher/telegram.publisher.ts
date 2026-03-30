@@ -27,7 +27,8 @@ export class TelegramPublisher {
 
     const keyboard = new InlineKeyboard()
       .text('\u{1F44D}', `vote:${item.id}:up`)
-      .text('\u{1F44E}', `vote:${item.id}:down`);
+      .text('\u{1F44E}', `vote:${item.id}:down`)
+      .text('🔖', `save:${item.id}`);
 
     if ((item.word_count ?? 0) > 400) {
       keyboard.text('\u{1F4DD} Summarize', `summarize:${item.id}`);

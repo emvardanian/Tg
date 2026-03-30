@@ -54,6 +54,7 @@ async function main(): Promise<void> {
 
   // Register commands and feedback
   registerCommands(bot, {
+    db,
     sourcesRepo,
     itemsRepo,
     usageRepo,
@@ -61,6 +62,7 @@ async function main(): Promise<void> {
   });
 
   registerFeedback(bot, {
+    db,
     feedbackRepo,
     itemsRepo,
     usageRepo,
