@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AiClassifier } from '../../src/classifier/ai.classifier.js';
 import type { UsageRepo } from '../../src/storage/repositories/usage.repo.js';
+import { UsageRepo as UsageRepoClass } from '../../src/storage/repositories/usage.repo.js';
+import { createDatabase } from '../../src/storage/db.js';
 
 const mockCreate = vi.fn();
 
@@ -118,6 +120,30 @@ describe('AiClassifier', () => {
       });
 
       expect(result).toBeNull();
+    });
+
+    it('returns a summary on success', async () => {
+      const { extract } = await import('@extractus/article-extractor');
+      vi.mocked(extract).mockResolvedValue({ content: 'Full article text.', url: 'https://example.com', title: 'T' } as any);
+      mockCreate.mockResolvedValue({
+        content: [{ type: 'text', text: 'Резюме статті.' }],
+        usage: { input_tokens: 200, output_tokens: 50 },
+      });
+
+      const db = createDatabase(':memory:');
+      const usageRepo = new UsageRepoClass(db);
+      const logSpy = vi.spyOn(usageRepo, 'log');
+      const classifier = new AiClassifier('fake-key', usageRepo, 100);
+
+      const result = await classifier.generateSummary({
+        url: 'https://example.com/article',
+        snippet: 'snippet text',
+        title: 'Test Article',
+      });
+
+      expect(result).toBe('Резюме статті.');
+      expect(logSpy).toHaveBeenCalled();
+      db.close();
     });
   });
 });

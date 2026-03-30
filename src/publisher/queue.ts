@@ -93,6 +93,7 @@ export class PublishQueue {
         logger.warn('Telegram rate limit hit, pausing queue', { retryAfterMs, itemId: item.id });
         this.items.unshift(item);
         this.enqueuedIds.add(item.id);
+        if (this.timer) clearTimeout(this.timer);
         this.timer = setTimeout(() => this.processNext(), retryAfterMs);
         return;
       }
