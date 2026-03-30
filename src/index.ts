@@ -52,15 +52,8 @@ async function main(): Promise<void> {
   // Init bot
   const bot = createBot(config.telegram.botToken);
 
-  // Register commands and feedback
-  registerCommands(bot, {
-    db,
-    sourcesRepo,
-    itemsRepo,
-    usageRepo,
-    adminChatId: config.telegram.adminChatId,
-  });
-
+  // Register feedback before commands — commands middleware blocks channel updates,
+  // but feedback callback queries come from channel messages and must run unrestricted.
   registerFeedback(bot, {
     db,
     feedbackRepo,
@@ -70,10 +63,18 @@ async function main(): Promise<void> {
     monthlyLimitUsd: config.anthropic.monthlyLimitUsd,
   });
 
+  registerCommands(bot, {
+    db,
+    sourcesRepo,
+    itemsRepo,
+    usageRepo,
+    adminChatId: config.telegram.adminChatId,
+  });
+
   // Init collectors
   const collectors = new Map<string, any>();
   collectors.set('rss', new RssCollector());
-  collectors.set('hackernews', new HackerNewsCollector(100));
+  collectors.set('hackernews', new HackerNewsCollector(300));
   collectors.set('reddit', new RedditCollector(50));
   collectors.set('producthunt', new ProductHuntCollector());
   collectors.set('github-trending', new GitHubTrendingCollector());

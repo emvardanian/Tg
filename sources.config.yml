@@ -41,10 +41,6 @@ sources:
     category: it
 
   # ── Startup / Product ──
-  - name: Paul Graham
-    url: https://www.paulgraham.com/rss.html
-    type: rss
-    category: business
 
   - name: Lenny Rachitsky
     url: https://www.lennysnewsletter.com/feed
@@ -58,21 +54,8 @@ sources:
   #   type: rss
   #   category: business
 
-  - name: a16z Blog
-    url: https://a16z.com/feed/
-    type: rss
-    category: business
-
-  - name: First Round Review
-    url: https://review.firstround.com/feed.xml
-    type: rss
-    category: business
 
   # ── Finance / Investing ──
-  - name: Morgan Housel
-    url: https://collabfund.com/blog/feed/
-    type: rss
-    category: finance
 
   # ── Tool Builders / Indie ──
   - name: Guillermo Rauch
@@ -117,28 +100,19 @@ sources:
     type: hn
     category: tools
 
-  - name: r/programming
-    url: https://www.reddit.com/r/programming
-    type: reddit
-    category: it
-
-  - name: r/MachineLearning
-    url: https://www.reddit.com/r/MachineLearning
-    type: reddit
-    category: ai
-
-  - name: r/startups
-    url: https://www.reddit.com/r/startups
-    type: reddit
-    category: business
 
   - name: Product Hunt
     url: https://www.producthunt.com/feed
     type: producthunt
     category: tools
 
-  - name: GitHub Trending
+  - name: GitHub Trending Daily
     url: https://github.com/trending
+    type: github
+    category: tools
+
+  - name: GitHub Trending Weekly
+    url: https://github.com/trending?since=weekly
     type: github
     category: tools
 
@@ -147,13 +121,3 @@ sources:
     url: https://tldr.tech/rss
     type: rss
     category: it
-
-  - name: Console.dev
-    url: https://console.dev/feed.xml
-    type: rss
-    category: tools
-
-  - name: The Batch (DeepLearning.AI)
-    url: https://www.deeplearning.ai/the-batch/feed/
-    type: rss
-    category: ai

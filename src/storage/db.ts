@@ -34,6 +34,10 @@ CREATE TABLE IF NOT EXISTS items (
   classifier_score REAL DEFAULT 0,
   feedback_score REAL DEFAULT 0,
   score REAL GENERATED ALWAYS AS (classifier_score * 0.4 + feedback_score * 0.6) STORED,
+  stars INTEGER,
+  stars_today INTEGER,
+  upvotes INTEGER,
+  comments INTEGER,
   published INTEGER DEFAULT 0,
   telegram_message_id INTEGER,
   discovered_at TEXT DEFAULT (datetime('now')),
@@ -105,5 +109,13 @@ export function createDatabase(dbPath: string): Database {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
   db.exec(SCHEMA);
+
+  // Migrations
+  const cols = (db.pragma('table_info(items)') as Array<{ name: string }>).map(c => c.name);
+  if (!cols.includes('stars')) db.exec('ALTER TABLE items ADD COLUMN stars INTEGER');
+  if (!cols.includes('stars_today')) db.exec('ALTER TABLE items ADD COLUMN stars_today INTEGER');
+  if (!cols.includes('upvotes')) db.exec('ALTER TABLE items ADD COLUMN upvotes INTEGER');
+  if (!cols.includes('comments')) db.exec('ALTER TABLE items ADD COLUMN comments INTEGER');
+
   return db;
 }

@@ -11,6 +11,7 @@ export class PublishQueue {
   private items: Item[] = [];
   private enqueuedIds = new Set<number>();
   private timer: ReturnType<typeof setInterval> | null = null;
+  private started = false;
   private publishedThisHour = 0;
   private hourStart = Date.now();
 
@@ -34,6 +35,7 @@ export class PublishQueue {
 
   enqueue(item: Item): void {
     if (this.enqueuedIds.has(item.id)) return; // already in queue
+    const wasEmpty = this.items.length === 0;
     this.enqueuedIds.add(item.id);
     this.items.push(item);
     this.items.sort((a, b) => this.effectiveScore(b) - this.effectiveScore(a));
@@ -44,9 +46,14 @@ export class PublishQueue {
       for (const d of dropped) this.enqueuedIds.delete(d.id);
       logger.warn(`Queue overflow: dropped ${dropped.length} low-score items`);
     }
+
+    if (wasEmpty && this.started && !this.timer) {
+      this.processNext();
+    }
   }
 
   start(): void {
+    this.started = true;
     this.processNext();
   }
 

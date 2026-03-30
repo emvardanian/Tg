@@ -134,6 +134,10 @@ export class Scheduler {
             title: collected.title,
             contentSnippet: collected.contentSnippet,
             wordCount: collected.wordCount,
+            stars: collected.meta.stars,
+            starsToday: collected.meta.starsToday,
+            upvotes: collected.meta.upvotes,
+            comments: collected.meta.comments,
           });
 
           if (!item) {

@@ -25,6 +25,9 @@ interface FormatInput {
   sourceName: string;
   wordCount?: number;
   stars?: number;
+  starsToday?: number;
+  upvotes?: number;
+  comments?: number;
   sightings?: Array<{ source_name: string; meta: string | null }>;
 }
 
@@ -41,19 +44,26 @@ export function formatMessage(input: FormatInput): string {
   lines.push(input.title);
 
   if (input.contentSnippet) {
-    const snippet = input.contentSnippet.length > 200
-      ? input.contentSnippet.slice(0, 200) + '...'
+    // Reserve ~200 chars for header/footer
+    const maxSnippet = 4096 - input.title.length - 200;
+    const snippet = input.contentSnippet.length > maxSnippet
+      ? input.contentSnippet.slice(0, maxSnippet) + '...'
       : input.contentSnippet;
     lines.push('');
     lines.push(snippet);
   }
 
   lines.push('');
-  lines.push(`🔗 ${domain}`);
-  lines.push(`📌 ${input.sourceName}`);
+  lines.push(`📌 ${input.sourceName}  |  🔗 ${input.url}`);
 
   if (input.stars) {
-    lines.push(`⭐ ${input.stars.toLocaleString('en-US')}`);
+    const todayPart = input.starsToday ? `  🚀 +${input.starsToday.toLocaleString('en-US')} today` : '';
+    lines.push(`⭐ ${input.stars.toLocaleString('en-US')} stars${todayPart}`);
+  }
+
+  if (input.upvotes) {
+    const commentsPart = input.comments ? ` · 💬 ${input.comments}` : '';
+    lines.push(`🔺 ${input.upvotes} pts${commentsPart}`);
   }
 
   if (input.sightings?.length) {

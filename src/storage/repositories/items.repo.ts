@@ -17,6 +17,10 @@ export interface Item {
   classifier_score: number;
   feedback_score: number;
   score: number;
+  stars: number | null;
+  stars_today: number | null;
+  upvotes: number | null;
+  comments: number | null;
   published: number;
   telegram_message_id: number | null;
   discovered_at: string;
@@ -30,6 +34,10 @@ interface InsertInput {
   title: string;
   contentSnippet?: string;
   wordCount?: number;
+  stars?: number;
+  starsToday?: number;
+  upvotes?: number;
+  comments?: number;
 }
 
 interface ClassificationInput {
@@ -45,8 +53,8 @@ export class ItemsRepo {
 
   constructor(private db: Database) {
     this.insertStmt = db.prepare(`
-      INSERT OR IGNORE INTO items (source_id, external_id, url, url_normalized, title, content_snippet, word_count)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT OR IGNORE INTO items (source_id, external_id, url, url_normalized, title, content_snippet, word_count, stars, stars_today, upvotes, comments)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     this.getByIdStmt = db.prepare('SELECT * FROM items WHERE id = ?');
   }
@@ -61,6 +69,10 @@ export class ItemsRepo {
       input.title,
       input.contentSnippet ?? null,
       input.wordCount ?? null,
+      input.stars ?? null,
+      input.starsToday ?? null,
+      input.upvotes ?? null,
+      input.comments ?? null,
     );
 
     if (result.changes === 0) return null; // duplicate

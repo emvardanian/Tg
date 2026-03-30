@@ -18,6 +18,7 @@ export interface CollectedItem {
     upvotes?: number;
     comments?: number;
     stars?: number;
+    starsToday?: number;
     links?: string[];
   };
 }

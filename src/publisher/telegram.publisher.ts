@@ -23,6 +23,10 @@ export class TelegramPublisher {
       url: item.url,
       sourceName: source?.name ?? 'Unknown',
       wordCount: item.word_count ?? undefined,
+      stars: item.stars ?? undefined,
+      starsToday: item.stars_today ?? undefined,
+      upvotes: item.upvotes ?? undefined,
+      comments: item.comments ?? undefined,
     });
 
     const keyboard = new InlineKeyboard()
