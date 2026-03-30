@@ -108,6 +108,8 @@ export function createDatabase(dbPath: string): Database {
   const db = new BetterSqlite3(dbPath);
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
+  db.pragma('busy_timeout = 5000');
+  db.pragma('synchronous = NORMAL');
   db.exec(SCHEMA);
 
   // Migrations

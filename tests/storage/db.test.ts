@@ -53,3 +53,24 @@ describe('createDatabase', () => {
     expect(mode).toBe('wal');
   });
 });
+
+describe('createDatabase pragmas', () => {
+  let db: Database;
+
+  afterEach(() => {
+    db?.close();
+  });
+
+  it('sets busy_timeout to 5000', () => {
+    db = createDatabase(':memory:');
+    const result = db.pragma('busy_timeout', { simple: true });
+    expect(result).toBe(5000);
+  });
+
+  it('sets synchronous to NORMAL (1)', () => {
+    db = createDatabase(':memory:');
+    const result = db.pragma('synchronous', { simple: true });
+    // 0=OFF, 1=NORMAL, 2=FULL, 3=EXTRA
+    expect(result).toBe(1);
+  });
+});
