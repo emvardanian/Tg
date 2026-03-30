@@ -100,4 +100,46 @@ describe('PublishQueue', () => {
     // id:2 was already in queue from source 2 (effective=0.5+1.0*0.2=0.7)
     expect((queue as any).items[0].id).toBe(2);
   });
+
+  it('pauses queue and re-enqueues item on Telegram 429 error', async () => {
+    class FakeGrammyError extends Error {
+      error_code = 429;
+      parameters = { retry_after: 1 };
+      constructor() { super('Too Many Requests: retry after 1'); }
+    }
+
+    let callCount = 0;
+    const publishFn = vi.fn().mockImplementation(async () => {
+      callCount++;
+      if (callCount === 1) throw new FakeGrammyError();
+      return 1;
+    });
+
+    const queue = new PublishQueue(publishFn, { minIntervalMs: 10, maxPerHour: 15 });
+    queue.enqueue({ id: 1, score: 5 } as any);
+    queue.start();
+
+    await vi.advanceTimersByTimeAsync(10);
+    expect(publishFn).toHaveBeenCalledTimes(1);
+    expect(queue.size).toBe(1); // item put back
+
+    await vi.advanceTimersByTimeAsync(1000); // wait retry_after=1s
+    expect(publishFn).toHaveBeenCalledTimes(2);
+    expect(queue.size).toBe(0); // successfully published
+
+    queue.stop();
+  });
+
+  it('drops item on non-429 failure', async () => {
+    const publishFn = vi.fn().mockRejectedValue(new Error('network error'));
+    const queue = new PublishQueue(publishFn, { minIntervalMs: 10, maxPerHour: 15 });
+    queue.enqueue({ id: 1, score: 5 } as any);
+    queue.start();
+
+    await vi.advanceTimersByTimeAsync(10);
+    expect(publishFn).toHaveBeenCalledTimes(1);
+    expect(queue.size).toBe(0); // item dropped
+
+    queue.stop();
+  });
 });

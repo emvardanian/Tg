@@ -83,15 +83,37 @@ export class PublishQueue {
 
     const item = this.items.shift()!;
     this.enqueuedIds.delete(item.id);
+
     try {
       await this.publishFn(item);
       this.publishedThisHour++;
     } catch (err) {
+      const retryAfterMs = this.extractRetryAfterMs(err);
+      if (retryAfterMs !== null) {
+        logger.warn('Telegram rate limit hit, pausing queue', { retryAfterMs, itemId: item.id });
+        this.items.unshift(item);
+        this.enqueuedIds.add(item.id);
+        this.timer = setTimeout(() => this.processNext(), retryAfterMs);
+        return;
+      }
       logger.error('Failed to publish item', { itemId: item.id, error: (err as Error).message });
     }
 
     if (this.items.length > 0 && this.publishedThisHour < this.options.maxPerHour) {
       this.timer = setTimeout(() => this.processNext(), this.options.minIntervalMs);
     }
+  }
+
+  private extractRetryAfterMs(err: unknown): number | null {
+    if (
+      err !== null &&
+      typeof err === 'object' &&
+      'error_code' in err &&
+      (err as any).error_code === 429
+    ) {
+      const retryAfter = (err as any).parameters?.retry_after;
+      return typeof retryAfter === 'number' ? retryAfter * 1000 : 60_000;
+    }
+    return null;
   }
 }
