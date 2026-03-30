@@ -103,5 +103,21 @@ describe('AiClassifier', () => {
       expect(result).not.toBeNull();
       expect(typeof result).toBe('string');
     });
+
+    it('returns null when Claude API call fails', async () => {
+      const { extract } = await import('@extractus/article-extractor');
+      vi.mocked(extract).mockResolvedValue({ content: 'Some article text', url: 'https://example.com', title: 'Test' } as any);
+      mockCreate.mockRejectedValue(new Error('API timeout'));
+
+      const classifier = new AiClassifier('fake-key', mockUsageRepo, 100);
+
+      const result = await classifier.generateSummary({
+        url: 'https://example.com/article',
+        snippet: 'snippet text',
+        title: 'Test Article',
+      });
+
+      expect(result).toBeNull();
+    });
   });
 });

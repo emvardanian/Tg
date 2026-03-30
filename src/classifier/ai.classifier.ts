@@ -119,7 +119,8 @@ export class AiClassifier {
         ],
       });
 
-      const summary = response.content[0].type === 'text' ? response.content[0].text : null;
+      const firstBlock = response.content[0];
+      const summary = firstBlock?.type === 'text' ? firstBlock.text : null;
       if (!summary) return null;
 
       const costUsd = calculateCost(response.usage.input_tokens, response.usage.output_tokens);
