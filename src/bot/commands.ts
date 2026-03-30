@@ -120,30 +120,4 @@ export function registerCommands(bot: Bot, deps: CommandDeps): void {
     );
   });
 
-  bot.command('saved', async (ctx) => {
-    const arg = ctx.match?.trim();
-
-    if (arg === 'clear') {
-      db.prepare('DELETE FROM saved_items').run();
-      await ctx.reply('🗑 Збережені елементи очищено');
-      return;
-    }
-
-    const saved = db.prepare(`
-      SELECT i.title, i.url FROM saved_items si
-      JOIN items i ON si.item_id = i.id
-      ORDER BY si.saved_at DESC LIMIT 20
-    `).all() as Array<{ title: string; url: string }>;
-
-    if (saved.length === 0) {
-      await ctx.reply('📭 Немає збережених елементів');
-      return;
-    }
-
-    const lines = saved.map((s, i) => `${i + 1}. [${s.title}](${s.url})`);
-    await ctx.reply(`🔖 Збережені (${saved.length}):\n\n${lines.join('\n')}`, {
-      parse_mode: 'Markdown',
-      link_preview_options: { is_disabled: true },
-    });
-  });
 }

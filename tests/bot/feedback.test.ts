@@ -46,6 +46,7 @@ function makeMockCtx(overrides: Record<string, any> = {}): any {
   return {
     match: null,
     answerCallbackQuery: vi.fn().mockResolvedValue(undefined),
+    editMessageReplyMarkup: vi.fn().mockResolvedValue(undefined),
     reply: vi.fn().mockResolvedValue(undefined),
     callbackQuery: { message: { message_id: 100 } },
     ...overrides,

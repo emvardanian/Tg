@@ -55,7 +55,6 @@ async function main(): Promise<void> {
   // Register feedback before commands — commands middleware blocks channel updates,
   // but feedback callback queries come from channel messages and must run unrestricted.
   registerFeedback(bot, {
-    db,
     feedbackRepo,
     itemsRepo,
     usageRepo,
