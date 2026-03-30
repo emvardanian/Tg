@@ -127,6 +127,7 @@ async function main(): Promise<void> {
     discoveryDigest,
     adminChatId: config.telegram.adminChatId,
     monthlyLimitUsd: config.anthropic.monthlyLimitUsd,
+    digestMode: config.digest.mode,
   });
 
   // Start

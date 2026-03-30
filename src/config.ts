@@ -31,6 +31,9 @@ export interface AppConfig {
     path: string;
   };
   logLevel: string;
+  digest: {
+    mode: 'daily' | 'realtime';
+  };
 }
 
 export function loadConfig(sourcesPath: string): AppConfig {
@@ -45,6 +48,11 @@ export function loadConfig(sourcesPath: string): AppConfig {
     if (!s.name || !s.url || !s.type) {
       throw new Error(`Invalid source: name, url, and type are required. Got: ${JSON.stringify(s)}`);
     }
+  }
+
+  const digestModeRaw = process.env.DIGEST_MODE ?? 'realtime';
+  if (digestModeRaw !== 'daily' && digestModeRaw !== 'realtime') {
+    throw new Error(`Invalid DIGEST_MODE "${digestModeRaw}". Must be "daily" or "realtime".`);
   }
 
   return {
@@ -65,5 +73,8 @@ export function loadConfig(sourcesPath: string): AppConfig {
       path: process.env.DB_PATH ?? './data/aggregator.db',
     },
     logLevel: process.env.LOG_LEVEL ?? 'info',
+    digest: {
+      mode: digestModeRaw,
+    },
   };
 }

@@ -12,6 +12,7 @@ import type { PublishQueue } from './publisher/queue.js';
 import type { TelegramPublisher } from './publisher/telegram.publisher.js';
 import type { DiscoveryDigest } from './discovery/discovery-digest.js';
 import { processLinks } from './discovery/link-graph.js';
+import { formatDigest } from './publisher/digest-formatter.js';
 import { logger } from './logger.js';
 
 interface SchedulerDeps {
@@ -28,6 +29,7 @@ interface SchedulerDeps {
   discoveryDigest: DiscoveryDigest;
   adminChatId: string;
   monthlyLimitUsd: number;
+  digestMode: 'daily' | 'realtime';
 }
 
 export class Scheduler {
@@ -66,6 +68,11 @@ export class Scheduler {
     // GitHub Trending: daily at 10:00
     if (collectors.has('github-trending')) {
       this.tasks.push(cron.schedule('0 10 * * *', () => this.runCollector('github-trending')));
+    }
+
+    if (this.deps.digestMode === 'daily') {
+      // Daily digest at 08:05
+      this.tasks.push(cron.schedule('5 8 * * *', () => this.sendDailyDigest()));
     }
 
     // Discovery digest: Sunday at 18:00
@@ -221,6 +228,23 @@ export class Scheduler {
     const items = this.deps.itemsRepo.getUnpublished(10);
     for (const item of items) {
       this.deps.publishQueue.enqueue(item);
+    }
+  }
+
+  private async sendDailyDigest(): Promise<void> {
+    const items = this.deps.itemsRepo.getUnpublished(15);
+    const digest = formatDigest(items.map((i) => ({
+      title: i.title,
+      category: i.category,
+      url: i.url,
+      source_name: this.deps.sourcesRepo.getById(i.source_id)?.name,
+    })));
+
+    await this.deps.publisher.sendNotification(this.deps.adminChatId, digest);
+
+    // Mark all as published (no individual Telegram messages in digest mode)
+    for (const item of items) {
+      this.deps.itemsRepo.markPublished(item.id, 0);
     }
   }
 
