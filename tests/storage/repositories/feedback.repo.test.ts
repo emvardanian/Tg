@@ -39,4 +39,15 @@ describe('FeedbackRepo', () => {
     const scores = repo.getSourceScores();
     expect(scores).toHaveLength(0); // only 0-3 feedbacks, threshold is 10
   });
+
+  it('add() is atomic: feedback_score reflects all votes consistently after many votes', () => {
+    for (let i = 0; i < 5; i++) repo.add(1, 1);
+    for (let i = 0; i < 5; i++) repo.add(1, -1);
+
+    const item = db.prepare('SELECT feedback_score FROM items WHERE id = 1').get() as any;
+    expect(item.feedback_score).toBeCloseTo(0, 5);
+
+    const count = db.prepare('SELECT COUNT(*) as n FROM feedback WHERE item_id = 1').get() as any;
+    expect(count.n).toBe(10);
+  });
 });

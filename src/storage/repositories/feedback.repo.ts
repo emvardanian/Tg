@@ -10,14 +10,17 @@ export class FeedbackRepo {
   constructor(private db: Database) {}
 
   add(itemId: number, score: 1 | -1): void {
-    this.db.prepare('INSERT INTO feedback (item_id, score) VALUES (?, ?)').run(itemId, score);
+    const txn = this.db.transaction(() => {
+      this.db.prepare('INSERT INTO feedback (item_id, score) VALUES (?, ?)').run(itemId, score);
 
-    // Update item score
-    const agg = this.db
-      .prepare('SELECT COALESCE(AVG(score), 0) as avg FROM feedback WHERE item_id = ?')
-      .get(itemId) as { avg: number };
+      const agg = this.db
+        .prepare('SELECT COALESCE(AVG(score), 0) as avg FROM feedback WHERE item_id = ?')
+        .get(itemId) as { avg: number };
 
-    this.db.prepare('UPDATE items SET feedback_score = ? WHERE id = ?').run(agg.avg, itemId);
+      this.db.prepare('UPDATE items SET feedback_score = ? WHERE id = ?').run(agg.avg, itemId);
+    });
+
+    txn();
   }
 
   getSourceScores(): SourceScore[] {
