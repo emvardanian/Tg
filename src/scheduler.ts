@@ -136,7 +136,17 @@ export class Scheduler {
             wordCount: collected.wordCount,
           });
 
-          if (!item) continue; // duplicate
+          if (!item) {
+            // Cross-source sighting
+            const existing = this.deps.itemsRepo.findByNormalizedUrl(collected.url);
+            if (existing) {
+              this.deps.itemsRepo.addSighting(existing.id, source.id, {
+                upvotes: collected.meta.upvotes,
+                comments: collected.meta.comments,
+              });
+            }
+            continue;
+          }
           newCount++;
 
           // Classify

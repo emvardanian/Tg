@@ -92,4 +92,25 @@ export class ItemsRepo {
   saveSummary(id: number, summary: string): void {
     this.db.prepare('UPDATE items SET summary = ? WHERE id = ?').run(summary, id);
   }
+
+  findByNormalizedUrl(url: string): Item | undefined {
+    const normalized = normalizeUrl(url);
+    return this.db.prepare('SELECT * FROM items WHERE url_normalized = ?').get(normalized) as Item | undefined;
+  }
+
+  addSighting(itemId: number, sourceId: number, meta?: { upvotes?: number; comments?: number }): void {
+    this.db.prepare(`
+      INSERT OR IGNORE INTO item_sightings (item_id, source_id, meta)
+      VALUES (?, ?, ?)
+    `).run(itemId, sourceId, meta ? JSON.stringify(meta) : null);
+  }
+
+  getSightings(itemId: number): Array<{ source_name: string; meta: string | null }> {
+    return this.db.prepare(`
+      SELECT s.name as source_name, si.meta
+      FROM item_sightings si
+      JOIN sources s ON si.source_id = s.id
+      WHERE si.item_id = ?
+    `).all(itemId) as any[];
+  }
 }

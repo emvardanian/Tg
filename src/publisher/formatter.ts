@@ -25,6 +25,7 @@ interface FormatInput {
   sourceName: string;
   wordCount?: number;
   stars?: number;
+  sightings?: Array<{ source_name: string; meta: string | null }>;
 }
 
 export function formatMessage(input: FormatInput): string {
@@ -53,6 +54,15 @@ export function formatMessage(input: FormatInput): string {
 
   if (input.stars) {
     lines.push(`⭐ ${input.stars.toLocaleString('en-US')}`);
+  }
+
+  if (input.sightings?.length) {
+    const parts = input.sightings.map((s) => {
+      const meta = s.meta ? JSON.parse(s.meta) : {};
+      const suffix = meta.upvotes ? ` (${meta.upvotes} pts)` : '';
+      return `${s.source_name}${suffix}`;
+    });
+    lines.push(`📡 Also on: ${parts.join(', ')}`);
   }
 
   return lines.join('\n');

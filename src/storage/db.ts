@@ -77,6 +77,15 @@ CREATE TABLE IF NOT EXISTS api_usage (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS item_sightings (
+  id INTEGER PRIMARY KEY,
+  item_id INTEGER NOT NULL REFERENCES items(id),
+  source_id INTEGER NOT NULL REFERENCES sources(id),
+  meta TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(item_id, source_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_items_url ON items(url_normalized);
 CREATE INDEX IF NOT EXISTS idx_items_published ON items(published, discovered_at);
 CREATE INDEX IF NOT EXISTS idx_items_source ON items(source_id, discovered_at);
