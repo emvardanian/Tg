@@ -56,10 +56,6 @@ async function main(): Promise<void> {
   // but feedback callback queries come from channel messages and must run unrestricted.
   registerFeedback(bot, {
     feedbackRepo,
-    itemsRepo,
-    usageRepo,
-    anthropicApiKey: config.anthropic.apiKey,
-    monthlyLimitUsd: config.anthropic.monthlyLimitUsd,
   });
 
   registerCommands(bot, {

@@ -62,4 +62,28 @@ describe('formatMessage', () => {
 
     expect(msg.length).toBeLessThan(longSnippet.length + 200);
   });
+
+  it('includes summary when provided', () => {
+    const result = formatMessage({
+      category: 'ai',
+      contentType: 'article',
+      title: 'Test Article',
+      url: 'https://example.com/test',
+      sourceName: 'Test Source',
+      summary: 'Це резюме статті у трьох реченнях.',
+    });
+    expect(result).toContain('Це резюме статті');
+    expect(result).toContain('📝');
+  });
+
+  it('omits summary section when not provided', () => {
+    const result = formatMessage({
+      category: 'ai',
+      contentType: 'article',
+      title: 'Test Article',
+      url: 'https://example.com/test',
+      sourceName: 'Test Source',
+    });
+    expect(result).not.toContain('📝');
+  });
 });

@@ -21,6 +21,7 @@ interface FormatInput {
   contentType: string;
   title: string;
   contentSnippet?: string;
+  summary?: string;
   url: string;
   sourceName: string;
   wordCount?: number;
@@ -51,6 +52,11 @@ export function formatMessage(input: FormatInput): string {
       : input.contentSnippet;
     lines.push('');
     lines.push(snippet);
+  }
+
+  if (input.summary) {
+    lines.push('');
+    lines.push(`📝 ${input.summary}`);
   }
 
   lines.push('');

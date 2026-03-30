@@ -20,6 +20,7 @@ export class TelegramPublisher {
       contentType: item.content_type ?? 'article',
       title: item.title,
       contentSnippet: item.content_snippet ?? undefined,
+      summary: item.summary ?? undefined,
       url: item.url,
       sourceName: source?.name ?? 'Unknown',
       wordCount: item.word_count ?? undefined,
@@ -32,10 +33,6 @@ export class TelegramPublisher {
     const keyboard = new InlineKeyboard()
       .text('\u{1F44D}', `vote:${item.id}:up`)
       .text('\u{1F44E}', `vote:${item.id}:down`);
-
-    if ((item.word_count ?? 0) > 400) {
-      keyboard.text('\u{1F4DD} Summarize', `summarize:${item.id}`);
-    }
 
     const msg = await this.bot.api.sendMessage(this.channelId, text, {
       reply_markup: keyboard,
