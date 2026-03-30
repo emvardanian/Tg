@@ -98,10 +98,16 @@ export class AiClassifier {
       return null;
     }
 
+    let text: string;
     try {
       const article = await extract(input.url);
-      const text = article?.content ?? input.snippet ?? input.title;
+      text = article?.content ?? input.snippet ?? input.title;
+    } catch {
+      logger.warn('Article extraction failed, falling back to snippet', { url: input.url });
+      text = input.snippet ?? input.title;
+    }
 
+    try {
       const response = await this.client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 300,

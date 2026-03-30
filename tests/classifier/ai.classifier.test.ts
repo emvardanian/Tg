@@ -84,9 +84,14 @@ describe('AiClassifier', () => {
       expect(mockCreate).not.toHaveBeenCalled();
     });
 
-    it('returns null when article extraction fails', async () => {
+    it('returns a summary when article extraction fails (falls back to snippet)', async () => {
       const { extract } = await import('@extractus/article-extractor');
       (extract as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Extraction failed'));
+
+      mockCreate.mockResolvedValue({
+        content: [{ type: 'text', text: 'Fallback summary from snippet.' }],
+        usage: { input_tokens: 100, output_tokens: 20 },
+      });
 
       const classifier = new AiClassifier('fake-key', mockUsageRepo, 5);
       const result = await classifier.generateSummary({
@@ -95,7 +100,8 @@ describe('AiClassifier', () => {
         title: 'Some title',
       });
 
-      expect(result).toBeNull();
+      expect(result).not.toBeNull();
+      expect(typeof result).toBe('string');
     });
   });
 });
