@@ -1,0 +1,27 @@
+sources:
+  # IT / Engineering / AI
+  - name: Simon Willison
+    url: https://simonwillison.net/atom/everything/
+    type: rss
+    category: ai
+
+  - name: Andrej Karpathy
+    url: https://karpathy.github.io/feed.xml
+    type: rss
+    category: ai
+
+  - name: Gergely Orosz
+    url: https://blog.pragmaticengineer.com/rss/
+    type: rss
+    category: it
+
+  # Aggregators
+  - name: Hacker News Top
+    url: https://news.ycombinator.com
+    type: hn
+    category: it
+
+  - name: Hacker News Show
+    url: https://news.ycombinator.com/show
+    type: hn
+    category: tools
