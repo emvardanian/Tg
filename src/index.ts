@@ -118,6 +118,7 @@ async function main(): Promise<void> {
     itemsRepo,
     linksRepo,
     usageRepo,
+    feedbackRepo,
     collectors,
     heuristicClassifier,
     aiClassifier,

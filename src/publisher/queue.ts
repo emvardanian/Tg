@@ -17,21 +17,31 @@ export class PublishQueue {
   constructor(
     private publishFn: (item: Item) => Promise<number>,
     private options: QueueOptions,
+    private sourceScores: Map<number, number> = new Map(),
   ) {}
 
   get size(): number {
     return this.items.length;
   }
 
+  private effectiveScore(item: Item): number {
+    return item.score + (this.sourceScores.get(item.source_id) ?? 0) * 0.2;
+  }
+
+  updateSourceScores(map: Map<number, number>): void {
+    this.sourceScores = map;
+  }
+
   enqueue(item: Item): void {
     if (this.enqueuedIds.has(item.id)) return; // already in queue
     this.enqueuedIds.add(item.id);
     this.items.push(item);
-    this.items.sort((a, b) => b.score - a.score);
+    this.items.sort((a, b) => this.effectiveScore(b) - this.effectiveScore(a));
 
     const max = this.options.maxQueueSize ?? 50;
     if (this.items.length > max) {
       const dropped = this.items.splice(max);
+      for (const d of dropped) this.enqueuedIds.delete(d.id);
       logger.warn(`Queue overflow: dropped ${dropped.length} low-score items`);
     }
   }

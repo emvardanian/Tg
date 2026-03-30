@@ -28,10 +28,11 @@ describe('Scheduler', () => {
       },
       linksRepo: {},
       usageRepo: { canUseAI: vi.fn().mockReturnValue(true) },
+      feedbackRepo: { getSourceScores: vi.fn().mockReturnValue([]) },
       collectors: new Map(),
       heuristicClassifier: new HeuristicClassifier(),
       aiClassifier: { classify: vi.fn().mockResolvedValue({ category: 'ai', contentType: 'article' }) },
-      publishQueue: { enqueue: vi.fn() },
+      publishQueue: { enqueue: vi.fn(), updateSourceScores: vi.fn() },
       publisher: { sendNotification: vi.fn() },
       discoveryDigest: { sendWeeklyDigest: vi.fn() },
       adminChatId: '123',
@@ -121,5 +122,24 @@ describe('Scheduler', () => {
     await (scheduler as any).runCollector('rss');
 
     expect(mockDeps.sourcesRepo.recordFetchError).not.toHaveBeenCalled();
+  });
+
+  it('updates source scores before enqueuing in publishPending', async () => {
+    mockDeps.feedbackRepo = {
+      getSourceScores: vi.fn().mockReturnValue([
+        { source_id: 1, avg_score: 0.5, total_feedback: 15 },
+      ]),
+    };
+    mockDeps.publishQueue.updateSourceScores = vi.fn();
+    mockDeps.itemsRepo.getUnpublished.mockReturnValue([{ id: 1, score: 0.5 } as any]);
+
+    scheduler = new Scheduler(mockDeps);
+    await (scheduler as any).publishPending();
+
+    expect(mockDeps.feedbackRepo.getSourceScores).toHaveBeenCalled();
+    expect(mockDeps.publishQueue.updateSourceScores).toHaveBeenCalledWith(
+      new Map([[1, 0.5]]),
+    );
+    expect(mockDeps.publishQueue.enqueue).toHaveBeenCalledWith({ id: 1, score: 0.5 });
   });
 });

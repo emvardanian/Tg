@@ -3,6 +3,7 @@ import type { SourcesRepo, Source } from './storage/repositories/sources.repo.js
 import type { ItemsRepo } from './storage/repositories/items.repo.js';
 import type { LinksRepo } from './storage/repositories/links.repo.js';
 import type { UsageRepo } from './storage/repositories/usage.repo.js';
+import type { FeedbackRepo } from './storage/repositories/feedback.repo.js';
 import type { Collector, CollectedItem } from './collectors/base.collector.js';
 import { withTimeout, RateLimitError } from './collectors/base.collector.js';
 import { HeuristicClassifier } from './classifier/heuristic.classifier.js';
@@ -18,6 +19,7 @@ interface SchedulerDeps {
   itemsRepo: ItemsRepo;
   linksRepo: LinksRepo;
   usageRepo: UsageRepo;
+  feedbackRepo: FeedbackRepo;
   collectors: Map<string, Collector>;
   heuristicClassifier: HeuristicClassifier;
   aiClassifier: AiClassifier;
@@ -212,6 +214,10 @@ export class Scheduler {
   }
 
   private async publishPending(): Promise<void> {
+    const scores = this.deps.feedbackRepo.getSourceScores();
+    const scoreMap = new Map(scores.map((s) => [s.source_id, s.avg_score]));
+    this.deps.publishQueue.updateSourceScores(scoreMap);
+
     const items = this.deps.itemsRepo.getUnpublished(10);
     for (const item of items) {
       this.deps.publishQueue.enqueue(item);

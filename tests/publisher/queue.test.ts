@@ -67,4 +67,37 @@ describe('PublishQueue', () => {
 
     expect(queue.size).toBe(3);
   });
+
+  it('boosts items from well-rated sources', () => {
+    const publishFn = vi.fn().mockResolvedValue(1);
+    const sourceScores = new Map([[1, 0.5], [2, -0.3]]);
+    const queue = new PublishQueue(publishFn, { minIntervalMs: 100, maxPerHour: 15 }, sourceScores);
+
+    queue.enqueue({ id: 1, source_id: 1, score: 0.5 } as any);
+    queue.enqueue({ id: 2, source_id: 2, score: 0.5 } as any);
+
+    // Item from source 1 (avg +0.5) should rank higher
+    // effectiveScore(id:1) = 0.5 + 0.5*0.2 = 0.6
+    // effectiveScore(id:2) = 0.5 + (-0.3)*0.2 = 0.44
+    expect((queue as any).items[0].id).toBe(1);
+  });
+
+  it('respects updated source scores on subsequent enqueue', () => {
+    const publishFn = vi.fn().mockResolvedValue(1);
+    const queue = new PublishQueue(publishFn, { minIntervalMs: 100, maxPerHour: 15 });
+
+    // Enqueue with no scores (both have same effective score)
+    queue.enqueue({ id: 1, source_id: 1, score: 0.5 } as any);
+    queue.enqueue({ id: 2, source_id: 2, score: 0.5 } as any);
+
+    // Now update scores — source 2 becomes preferred
+    queue.updateSourceScores(new Map([[1, -0.5], [2, 1.0]]));
+
+    // Enqueue a new item — triggers re-sort via effectiveScore
+    queue.enqueue({ id: 3, source_id: 2, score: 0.4 } as any);
+
+    // id:3 from source 2 (effective=0.4+1.0*0.2=0.6) > id:1 source 1 (effective=0.5+(-0.5)*0.2=0.4)
+    // id:2 was already in queue from source 2 (effective=0.5+1.0*0.2=0.7)
+    expect((queue as any).items[0].id).toBe(2);
+  });
 });
