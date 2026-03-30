@@ -5,8 +5,8 @@ import type { Source } from '../storage/repositories/sources.repo.js';
 export class GitHubTrendingCollector implements Collector {
   name = 'github-trending';
 
-  async collect(source: Source): Promise<CollectedItem[]> {
-    const res = await fetch('https://github.com/trending?since=daily');
+  async collect(source: Source, signal?: AbortSignal): Promise<CollectedItem[]> {
+    const res = await fetch('https://github.com/trending?since=daily', { signal });
     const html = await res.text();
     const $ = cheerio.load(html);
 

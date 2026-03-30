@@ -14,6 +14,8 @@ export interface Item {
   content_type: string | null;
   summary: string | null;
   classified_by: string | null;
+  classifier_score: number;
+  feedback_score: number;
   score: number;
   published: number;
   telegram_message_id: number | null;
@@ -83,7 +85,7 @@ export class ItemsRepo {
 
   updateClassification(id: number, input: ClassificationInput): void {
     this.db
-      .prepare('UPDATE items SET category = ?, content_type = ?, classified_by = ?, score = ? WHERE id = ?')
+      .prepare('UPDATE items SET category = ?, content_type = ?, classified_by = ?, classifier_score = ? WHERE id = ?')
       .run(input.category, input.contentType, input.classifiedBy, input.score, id);
   }
 

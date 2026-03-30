@@ -30,6 +30,11 @@ export function normalizeUrl(raw: string): string {
 }
 
 export function extractDomain(raw: string): string {
-  const url = new URL(raw);
-  return url.hostname.toLowerCase().replace(/^www\./, '');
+  try {
+    const url = new URL(raw);
+    return url.hostname.toLowerCase().replace(/^www\./, '');
+  } catch {
+    // Non-URL input (e.g., YouTube channel ID) — return as-is
+    return raw;
+  }
 }

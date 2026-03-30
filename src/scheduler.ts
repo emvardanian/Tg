@@ -103,7 +103,13 @@ export class Scheduler {
 
     for (const source of sources) {
       try {
-        const items = await withTimeout(collector.collect(source), 15_000);
+        const MAX_ITEMS_PER_SOURCE = 50;
+
+        const rawItems = await withTimeout((signal) => collector.collect(source, signal), 15_000);
+        const items = rawItems.slice(0, MAX_ITEMS_PER_SOURCE);
+        if (rawItems.length > MAX_ITEMS_PER_SOURCE) {
+          logger.warn(`Truncated ${source.name}: ${rawItems.length} → ${MAX_ITEMS_PER_SOURCE} items`);
+        }
 
         let newCount = 0;
         for (const collected of items) {

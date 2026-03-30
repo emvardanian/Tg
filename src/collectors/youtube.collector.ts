@@ -20,7 +20,7 @@ export class YouTubeCollector implements Collector {
 
   constructor(private apiKey: string) {}
 
-  async collect(source: Source): Promise<CollectedItem[]> {
+  async collect(source: Source, signal?: AbortSignal): Promise<CollectedItem[]> {
     // Extract channel ID from URL, or use URL as channel ID directly
     const channelId = source.url.includes('youtube.com/channel/')
       ? source.url.split('/channel/')[1]?.split('/')[0]
@@ -38,7 +38,7 @@ export class YouTubeCollector implements Collector {
       key: this.apiKey,
     });
 
-    const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
+    const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`, { signal });
     const data = (await res.json()) as YTSearchResponse;
 
     return (data.items ?? []).map((item) => ({

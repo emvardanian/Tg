@@ -17,7 +17,7 @@ export class FeedbackRepo {
       .prepare('SELECT COALESCE(AVG(score), 0) as avg FROM feedback WHERE item_id = ?')
       .get(itemId) as { avg: number };
 
-    this.db.prepare('UPDATE items SET score = ? WHERE id = ?').run(agg.avg, itemId);
+    this.db.prepare('UPDATE items SET feedback_score = ? WHERE id = ?').run(agg.avg, itemId);
   }
 
   getSourceScores(): SourceScore[] {

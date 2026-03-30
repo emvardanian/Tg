@@ -16,8 +16,15 @@ export function registerCommands(bot: Bot, deps: CommandDeps): void {
 
   // Only allow admin
   bot.use(async (ctx, next) => {
-    if (ctx.chat?.id.toString() === adminChatId || ctx.chat?.type === 'channel') {
+    const chatId = ctx.chat?.id.toString();
+    if (chatId === adminChatId) {
       await next();
+    } else if (ctx.chat?.type !== 'private') {
+      // Channel/group messages — only allow from configured channel
+      // Bot shouldn't process commands in channels anyway
+      return;
+    } else {
+      await ctx.reply('⛔ Доступ заборонено');
     }
   });
 

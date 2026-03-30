@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { UsageRepo } from '../storage/repositories/usage.repo.js';
+import { calculateCost } from '../pricing.js';
 import { logger } from '../logger.js';
 
 interface AiClassifyInput {
@@ -12,10 +13,6 @@ interface AiClassifyResult {
   category: string;
   contentType: string;
 }
-
-// Haiku pricing per million tokens
-const HAIKU_INPUT_PRICE = 0.25 / 1_000_000;
-const HAIKU_OUTPUT_PRICE = 1.25 / 1_000_000;
 
 export class AiClassifier {
   private client: Anthropic;
@@ -38,22 +35,43 @@ export class AiClassifier {
       const response = await this.client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 100,
-        system: 'You classify tech content. Respond in JSON only.',
+        system: 'You classify tech content into categories.',
         messages: [
           {
             role: 'user',
-            content: `Title: ${input.title} | Source: ${input.sourceName} | Snippet: ${input.snippet.slice(0, 500)}`,
+            content: `Classify: "${input.title}" from ${input.sourceName}. Snippet: ${input.snippet.slice(0, 500)}`,
           },
         ],
+        tools: [
+          {
+            name: 'classify',
+            description: 'Classify a tech content item',
+            input_schema: {
+              type: 'object' as const,
+              properties: {
+                category: {
+                  type: 'string',
+                  enum: ['ai', 'business', 'finance', 'product', 'tools', 'career', 'it'],
+                },
+                contentType: {
+                  type: 'string',
+                  enum: ['article', 'video', 'discussion', 'tool', 'repo'],
+                },
+              },
+              required: ['category', 'contentType'],
+            },
+          },
+        ],
+        tool_choice: { type: 'tool', name: 'classify' },
       });
 
-      const text = response.content[0].type === 'text' ? response.content[0].text : '';
-      const parsed = JSON.parse(text) as AiClassifyResult;
+      const toolBlock = response.content.find((b) => b.type === 'tool_use');
+      if (!toolBlock || toolBlock.type !== 'tool_use') return null;
+
+      const parsed = toolBlock.input as AiClassifyResult;
 
       // Log usage
-      const costUsd =
-        response.usage.input_tokens * HAIKU_INPUT_PRICE +
-        response.usage.output_tokens * HAIKU_OUTPUT_PRICE;
+      const costUsd = calculateCost(response.usage.input_tokens, response.usage.output_tokens);
 
       this.usageRepo.log({
         inputTokens: response.usage.input_tokens,

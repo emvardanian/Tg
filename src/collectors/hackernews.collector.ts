@@ -18,20 +18,24 @@ export class HackerNewsCollector implements Collector {
 
   constructor(private minScore: number = 100) {}
 
-  async collect(source: Source): Promise<CollectedItem[]> {
+  async collect(source: Source, signal?: AbortSignal): Promise<CollectedItem[]> {
     const isShow = source.url.includes('/show');
     const endpoint = isShow ? 'showstories' : 'topstories';
 
-    const res = await fetch(`${HN_API}/${endpoint}.json`);
+    const res = await fetch(`${HN_API}/${endpoint}.json`, { signal });
     const storyIds = (await res.json()) as number[];
 
     // Fetch top 30 stories
-    const stories = await Promise.all(
+    const results = await Promise.allSettled(
       storyIds.slice(0, 30).map(async (id) => {
-        const r = await fetch(`${HN_API}/item/${id}.json`);
+        const r = await fetch(`${HN_API}/item/${id}.json`, { signal });
         return r.json() as Promise<HNStory>;
       })
     );
+
+    const stories = results
+      .filter((r): r is PromiseFulfilledResult<HNStory> => r.status === 'fulfilled')
+      .map((r) => r.value);
 
     return stories
       .filter((s) => s.type === 'story' && s.url && s.score >= this.minScore)

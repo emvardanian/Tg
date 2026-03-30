@@ -17,22 +17,17 @@ export interface CollectedItem {
 
 export interface Collector {
   name: string;
-  collect(source: Source): Promise<CollectedItem[]>;
+  collect(source: Source, signal?: AbortSignal): Promise<CollectedItem[]>;
 }
 
-export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => {
-      controller.abort();
-      reject(new Error(`Timeout after ${ms}ms`));
-    }, ms);
+export function withTimeout<T>(
+  fn: (signal: AbortSignal) => Promise<T>,
+  ms: number,
+): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
 
-    promise.then(
-      (val) => { clearTimeout(timer); resolve(val); },
-      (err) => { clearTimeout(timer); reject(err); },
-    );
-  });
+  return fn(controller.signal).finally(() => clearTimeout(timer));
 }
 
 export function extractLinks(html: string): string[] {

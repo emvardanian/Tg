@@ -69,15 +69,6 @@ describe('RssCollector', () => {
     expect(items[0].meta.links).toContain('https://linked.example.com/article');
   });
 
-  it('skips items already seen (after last_item_id)', async () => {
-    const sourceWithCursor: Source = { ...fakeSource, last_item_id: 'post-1' };
-
-    const items = await collector.collect(sourceWithCursor);
-
-    expect(items).toHaveLength(1);
-    expect(items[0].externalId).toBe('post-2');
-  });
-
   it('estimates word count from snippet', async () => {
     const items = await collector.collect(fakeSource);
 

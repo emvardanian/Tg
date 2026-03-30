@@ -51,10 +51,12 @@ sources:
     type: rss
     category: product
 
-  - name: Ben Thompson
-    url: https://stratechery.com/feed/
-    type: rss
-    category: business
+  # NOTE: Stratechery requires paid subscription for full RSS content.
+  # Uncomment if you have a subscription.
+  # - name: Ben Thompson
+  #   url: https://stratechery.com/feed/
+  #   type: rss
+  #   category: business
 
   - name: a16z Blog
     url: https://a16z.com/feed/

@@ -45,6 +45,17 @@ describe('PublishQueue', () => {
     queue.stop();
   });
 
+  it('ignores duplicate enqueue of same item', () => {
+    const publishFn = vi.fn().mockResolvedValue(1);
+    const queue = new PublishQueue(publishFn, { minIntervalMs: 100, maxPerHour: 15 });
+
+    const item = { id: 1, score: 5 } as any;
+    queue.enqueue(item);
+    queue.enqueue(item); // duplicate
+
+    expect(queue.size).toBe(1);
+  });
+
   it('drops low-score items when queue overflows', () => {
     const publishFn = vi.fn().mockResolvedValue(1);
     const queue = new PublishQueue(publishFn, { minIntervalMs: 100, maxPerHour: 15, maxQueueSize: 3 });

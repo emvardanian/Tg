@@ -8,24 +8,12 @@ const parser = new Parser();
 export class RssCollector implements Collector {
   name = 'rss';
 
-  async collect(source: Source): Promise<CollectedItem[]> {
+  async collect(source: Source, _signal?: AbortSignal): Promise<CollectedItem[]> {
     const feed = await parser.parseURL(source.url);
     const items: CollectedItem[] = [];
 
-    let seenCursor = false;
-
     for (const entry of feed.items ?? []) {
       const id = entry.guid ?? entry.link ?? '';
-
-      // Skip items up to and including the cursor
-      if (source.last_item_id) {
-        if (id === source.last_item_id) {
-          seenCursor = true;
-          continue;
-        }
-        if (!seenCursor) continue;
-      }
-
       if (!entry.link || !entry.title) continue;
 
       const links = extractLinks(entry.content ?? entry['content:encoded'] ?? '');

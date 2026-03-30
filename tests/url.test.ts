@@ -48,4 +48,9 @@ describe('extractDomain', () => {
     expect(extractDomain('https://blog.example.com/feed'))
       .toBe('blog.example.com');
   });
+
+  it('returns raw string for non-URL input', () => {
+    expect(extractDomain('UCsBjURrPoezykLs9EqgamOA'))
+      .toBe('UCsBjURrPoezykLs9EqgamOA');
+  });
 });

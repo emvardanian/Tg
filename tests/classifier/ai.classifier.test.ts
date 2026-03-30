@@ -23,7 +23,7 @@ describe('AiClassifier', () => {
 
   it('classifies an item via Claude Haiku', async () => {
     mockCreate.mockResolvedValue({
-      content: [{ type: 'text', text: '{"category": "ai", "contentType": "article"}' }],
+      content: [{ type: 'tool_use', name: 'classify', input: { category: 'ai', contentType: 'article' } }],
       usage: { input_tokens: 300, output_tokens: 30 },
     });
 

@@ -4,11 +4,8 @@ import type { ItemsRepo } from '../storage/repositories/items.repo.js';
 import type { UsageRepo } from '../storage/repositories/usage.repo.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { extract } from '@extractus/article-extractor';
+import { calculateCost } from '../pricing.js';
 import { logger } from '../logger.js';
-
-// Haiku pricing per million tokens
-const HAIKU_INPUT_PRICE = 0.25 / 1_000_000;
-const HAIKU_OUTPUT_PRICE = 1.25 / 1_000_000;
 
 interface FeedbackDeps {
   feedbackRepo: FeedbackRepo;
@@ -20,6 +17,7 @@ interface FeedbackDeps {
 
 export function registerFeedback(bot: Bot, deps: FeedbackDeps): void {
   const { feedbackRepo, itemsRepo, usageRepo, anthropicApiKey, monthlyLimitUsd } = deps;
+  const anthropicClient = new Anthropic({ apiKey: anthropicApiKey });
 
   bot.callbackQuery(/^vote:(\d+):(up|down)$/, async (ctx) => {
     const itemId = parseInt(ctx.match![1], 10);
@@ -61,8 +59,7 @@ export function registerFeedback(bot: Bot, deps: FeedbackDeps): void {
       const article = await extract(item.url);
       const text = article?.content ?? item.content_snippet ?? item.title;
 
-      const client = new Anthropic({ apiKey: anthropicApiKey });
-      const response = await client.messages.create({
+      const response = await anthropicClient.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 300,
         messages: [
@@ -78,9 +75,7 @@ export function registerFeedback(bot: Bot, deps: FeedbackDeps): void {
       // Cache and log
       itemsRepo.saveSummary(itemId, summary);
 
-      const costUsd =
-        response.usage.input_tokens * HAIKU_INPUT_PRICE +
-        response.usage.output_tokens * HAIKU_OUTPUT_PRICE;
+      const costUsd = calculateCost(response.usage.input_tokens, response.usage.output_tokens);
       usageRepo.log({
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,

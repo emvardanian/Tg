@@ -58,9 +58,9 @@ describe('ItemsRepo', () => {
     repo.insertIfNew({ sourceId, externalId: '1', url: 'https://a.com/1', title: 'Low' });
     repo.insertIfNew({ sourceId, externalId: '2', url: 'https://a.com/2', title: 'High' });
 
-    // Manually set scores
-    db.prepare("UPDATE items SET score = 5 WHERE title = 'High'").run();
-    db.prepare("UPDATE items SET score = 1 WHERE title = 'Low'").run();
+    // Manually set classifier_score (score is a generated column)
+    db.prepare("UPDATE items SET classifier_score = 5 WHERE title = 'High'").run();
+    db.prepare("UPDATE items SET classifier_score = 1 WHERE title = 'Low'").run();
 
     const items = repo.getUnpublished(10);
     expect(items[0].title).toBe('High');
@@ -92,7 +92,7 @@ describe('ItemsRepo', () => {
     expect(updated.category).toBe('ai');
     expect(updated.content_type).toBe('article');
     expect(updated.classified_by).toBe('heuristic');
-    expect(updated.score).toBe(0.85);
+    expect(updated.classifier_score).toBe(0.85);
   });
 
   it('saveSummary caches summary text', () => {

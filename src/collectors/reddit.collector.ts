@@ -23,7 +23,7 @@ export class RedditCollector implements Collector {
 
   constructor(private minScore: number = 50) {}
 
-  async collect(source: Source): Promise<CollectedItem[]> {
+  async collect(source: Source, signal?: AbortSignal): Promise<CollectedItem[]> {
     // Extract subreddit from URL: https://www.reddit.com/r/programming → programming
     const match = source.url.match(/\/r\/([^/]+)/);
     const subreddit = match?.[1] ?? 'programming';
@@ -34,6 +34,7 @@ export class RedditCollector implements Collector {
         headers: {
           'User-Agent': 'content-aggregator/0.1.0 (personal bot)',
         },
+        signal,
       },
     );
 
