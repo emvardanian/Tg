@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DiscoveryDigest } from '../../src/discovery/discovery-digest.js';
 
 // Mock grammy InlineKeyboard
@@ -80,6 +80,7 @@ describe('DiscoveryDigest', () => {
       vi.stubGlobal('fetch', mockFetch);
       mockFetch.mockResolvedValue({ ok: false });
     });
+    afterEach(() => { vi.unstubAllGlobals(); });
 
     it('discovery:skip marks candidate as rejected', async () => {
       const digest = new DiscoveryDigest(bot as any, '123', linksRepo, sourcesRepo);

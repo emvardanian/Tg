@@ -57,6 +57,7 @@ describe('Feedback', () => {
   let deps: any;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     bot = makeMockBot();
     deps = {
       feedbackRepo: { add: vi.fn() },
