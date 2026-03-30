@@ -1,5 +1,12 @@
 import type { Source } from '../storage/repositories/sources.repo.js';
 
+export class RateLimitError extends Error {
+  constructor(public source: string, public retryAfterMs?: number) {
+    super(`Rate limited by ${source}`);
+    this.name = 'RateLimitError';
+  }
+}
+
 export interface CollectedItem {
   externalId: string;
   url: string;

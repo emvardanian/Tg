@@ -1,4 +1,5 @@
 import type { Collector, CollectedItem } from './base.collector.js';
+import { RateLimitError } from './base.collector.js';
 import type { Source } from '../storage/repositories/sources.repo.js';
 
 interface RedditPost {
@@ -37,6 +38,13 @@ export class RedditCollector implements Collector {
         signal,
       },
     );
+
+    if (!res.ok) {
+      if (res.status === 429) {
+        throw new RateLimitError('reddit', 60_000);
+      }
+      throw new Error(`Reddit API error: ${res.status}`);
+    }
 
     const data = (await res.json()) as RedditResponse;
 

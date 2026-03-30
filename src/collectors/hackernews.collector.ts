@@ -1,4 +1,5 @@
 import type { Collector, CollectedItem } from './base.collector.js';
+import { RateLimitError } from './base.collector.js';
 import type { Source } from '../storage/repositories/sources.repo.js';
 
 const HN_API = 'https://hacker-news.firebaseio.com/v0';
@@ -23,6 +24,12 @@ export class HackerNewsCollector implements Collector {
     const endpoint = isShow ? 'showstories' : 'topstories';
 
     const res = await fetch(`${HN_API}/${endpoint}.json`, { signal });
+    if (!res.ok) {
+      if (res.status === 429) {
+        throw new RateLimitError('hackernews', 60_000);
+      }
+      throw new Error(`HN API error: ${res.status}`);
+    }
     const storyIds = (await res.json()) as number[];
 
     // Fetch top 30 stories

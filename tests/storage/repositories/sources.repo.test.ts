@@ -97,4 +97,15 @@ describe('SourcesRepo', () => {
     repo.setEnabled(source.id, true);
     expect(repo.getEnabled()).toHaveLength(1);
   });
+
+  it('getAll returns all sources including disabled', () => {
+    repo.upsertFromConfig({ name: 'Active', url: 'https://a.com/feed', type: 'rss' });
+    repo.upsertFromConfig({ name: 'Disabled', url: 'https://b.com/feed', type: 'rss' });
+
+    const active = repo.getEnabled()[1]; // second source
+    repo.setEnabled(active.id, false);
+
+    expect(repo.getEnabled()).toHaveLength(1);
+    expect(repo.getAll()).toHaveLength(2);
+  });
 });

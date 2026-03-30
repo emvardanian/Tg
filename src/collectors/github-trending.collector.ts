@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import type { Collector, CollectedItem } from './base.collector.js';
+import { RateLimitError } from './base.collector.js';
 import type { Source } from '../storage/repositories/sources.repo.js';
 
 export class GitHubTrendingCollector implements Collector {
@@ -7,6 +8,12 @@ export class GitHubTrendingCollector implements Collector {
 
   async collect(source: Source, signal?: AbortSignal): Promise<CollectedItem[]> {
     const res = await fetch('https://github.com/trending?since=daily', { signal });
+    if (!res.ok) {
+      if (res.status === 429) {
+        throw new RateLimitError('github-trending', 60_000);
+      }
+      throw new Error(`GitHub Trending error: ${res.status}`);
+    }
     const html = await res.text();
     const $ = cheerio.load(html);
 

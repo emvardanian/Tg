@@ -4,7 +4,7 @@ import type { ItemsRepo } from './storage/repositories/items.repo.js';
 import type { LinksRepo } from './storage/repositories/links.repo.js';
 import type { UsageRepo } from './storage/repositories/usage.repo.js';
 import type { Collector, CollectedItem } from './collectors/base.collector.js';
-import { withTimeout } from './collectors/base.collector.js';
+import { withTimeout, RateLimitError } from './collectors/base.collector.js';
 import { HeuristicClassifier } from './classifier/heuristic.classifier.js';
 import type { AiClassifier } from './classifier/ai.classifier.js';
 import type { PublishQueue } from './publisher/queue.js';
@@ -140,6 +140,15 @@ export class Scheduler {
 
         logger.info(`Collected from ${source.name}`, { type, total: items.length, new: newCount });
       } catch (err) {
+        if (err instanceof RateLimitError) {
+          logger.warn(`Rate limited by ${source.name}, skipping this cycle`, {
+            type,
+            retryAfterMs: err.retryAfterMs,
+          });
+          // Do NOT call recordFetchError — rate limits are temporary
+          return;
+        }
+
         this.deps.sourcesRepo.recordFetchError(source.id);
         logger.error(`Collector failed for ${source.name}`, { type, error: (err as Error).message });
 
