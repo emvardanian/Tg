@@ -1,5 +1,5 @@
 sources:
-  # IT / Engineering / AI
+  # ── IT / Engineering / AI ──
   - name: Simon Willison
     url: https://simonwillison.net/atom/everything/
     type: rss
@@ -15,7 +15,96 @@ sources:
     type: rss
     category: it
 
-  # Aggregators
+  - name: Swyx
+    url: https://www.swyx.io/rss.xml
+    type: rss
+    category: ai
+
+  - name: DHH
+    url: https://world.hey.com/dhh/feed.atom
+    type: rss
+    category: it
+
+  - name: Martin Fowler
+    url: https://martinfowler.com/feed.atom
+    type: rss
+    category: it
+
+  - name: Ethan Mollick
+    url: https://www.oneusefulthing.org/feed
+    type: rss
+    category: ai
+
+  - name: Dan Abramov
+    url: https://overreacted.io/rss.xml
+    type: rss
+    category: it
+
+  # ── Startup / Product ──
+  - name: Paul Graham
+    url: https://www.paulgraham.com/rss.html
+    type: rss
+    category: business
+
+  - name: Lenny Rachitsky
+    url: https://www.lennysnewsletter.com/feed
+    type: rss
+    category: product
+
+  - name: Ben Thompson
+    url: https://stratechery.com/feed/
+    type: rss
+    category: business
+
+  - name: a16z Blog
+    url: https://a16z.com/feed/
+    type: rss
+    category: business
+
+  - name: First Round Review
+    url: https://review.firstround.com/feed.xml
+    type: rss
+    category: business
+
+  # ── Finance / Investing ──
+  - name: Morgan Housel
+    url: https://collabfund.com/blog/feed/
+    type: rss
+    category: finance
+
+  # ── Tool Builders / Indie ──
+  - name: Guillermo Rauch
+    url: https://rauchg.com/atom
+    type: rss
+    category: tools
+
+  - name: Pieter Levels
+    url: https://levels.io/rss/
+    type: rss
+    category: business
+
+  # ── Dev YouTube ──
+  - name: Fireship
+    url: UCsBjURrPoezykLs9EqgamOA
+    type: youtube
+    category: it
+
+  - name: ThePrimeagen
+    url: UCUyeluBRhGPCW4rPe_UvBZQ
+    type: youtube
+    category: it
+
+  - name: Theo (t3.gg)
+    url: UCbRP3c757lWg9M-U7TyEkXA
+    type: youtube
+    category: it
+
+  - name: ByteByteGo
+    url: UCZgt6AzoyjslHTC9dz0UoTw
+    type: youtube
+    category: it
+
+  # ── Trending Platforms ──
   - name: Hacker News Top
     url: https://news.ycombinator.com
     type: hn
@@ -25,3 +114,44 @@ sources:
     url: https://news.ycombinator.com/show
     type: hn
     category: tools
+
+  - name: r/programming
+    url: https://www.reddit.com/r/programming
+    type: reddit
+    category: it
+
+  - name: r/MachineLearning
+    url: https://www.reddit.com/r/MachineLearning
+    type: reddit
+    category: ai
+
+  - name: r/startups
+    url: https://www.reddit.com/r/startups
+    type: reddit
+    category: business
+
+  - name: Product Hunt
+    url: https://www.producthunt.com/feed
+    type: producthunt
+    category: tools
+
+  - name: GitHub Trending
+    url: https://github.com/trending
+    type: github
+    category: tools
+
+  # ── Aggregator Feeds ──
+  - name: TLDR Newsletter
+    url: https://tldr.tech/rss
+    type: rss
+    category: it
+
+  - name: Console.dev
+    url: https://console.dev/feed.xml
+    type: rss
+    category: tools
+
+  - name: The Batch (DeepLearning.AI)
+    url: https://www.deeplearning.ai/the-batch/feed/
+    type: rss
+    category: ai
