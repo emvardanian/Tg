@@ -27,6 +27,9 @@ export interface AppConfig {
     tavilyKey: string;
     braveKey: string;
   };
+  threads: {
+    accessToken: string;
+  };
   db: {
     path: string;
   };
@@ -68,6 +71,9 @@ export function loadConfig(sourcesPath: string): AppConfig {
     search: {
       tavilyKey: process.env.TAVILY_API_KEY ?? '',
       braveKey: process.env.BRAVE_SEARCH_API_KEY ?? '',
+    },
+    threads: {
+      accessToken: process.env.THREADS_ACCESS_TOKEN ?? '',
     },
     db: {
       path: process.env.DB_PATH ?? './data/aggregator.db',

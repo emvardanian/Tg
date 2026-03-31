@@ -76,6 +76,11 @@ export class Scheduler {
       this.tasks.push(cron.schedule('45 */6 * * *', () => this.runCollector('web-search')));
     }
 
+    // Threads: every 6h at :30
+    if (collectors.has('threads')) {
+      this.tasks.push(cron.schedule('30 */6 * * *', () => this.runCollector('threads')));
+    }
+
     if (this.deps.digestMode === 'daily') {
       // Daily digest at 08:05
       this.tasks.push(cron.schedule('5 8 * * *', () => this.sendDailyDigest()));
@@ -116,6 +121,7 @@ export class Scheduler {
       producthunt: 'producthunt',
       'github-trending': 'github',
       'web-search': 'search',
+      threads: 'threads',
     };
 
     const sources = this.deps.sourcesRepo.getByType(sourceTypeMap[type] ?? type);

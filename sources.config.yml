@@ -137,3 +137,14 @@ sources:
     url: "tech startup funding launch product hunt 2026"
     type: search
     category: business
+
+  # ── Threads (Meta Graph API) ──
+  - name: AI on Threads
+    url: "artificial intelligence GPT Claude Gemini"
+    type: threads
+    category: ai
+
+  - name: Startups on Threads
+    url: "startup founder product launch SaaS"
+    type: threads
+    category: business

@@ -18,6 +18,7 @@ import { ProductHuntCollector } from './collectors/producthunt.collector.js';
 import { GitHubTrendingCollector } from './collectors/github-trending.collector.js';
 import { WebSearchCollector } from './collectors/web-search.collector.js';
 import { SearchService } from './search/search.service.js';
+import { ThreadsCollector } from './collectors/threads.collector.js';
 import { HeuristicClassifier } from './classifier/heuristic.classifier.js';
 import { AiClassifier } from './classifier/ai.classifier.js';
 import { TelegramPublisher } from './publisher/telegram.publisher.js';
@@ -83,6 +84,10 @@ async function main(): Promise<void> {
   if (config.search.tavilyKey || config.search.braveKey) {
     const searchService = new SearchService(config.search.tavilyKey, config.search.braveKey);
     collectors.set('web-search', new WebSearchCollector(searchService));
+  }
+
+  if (config.threads.accessToken) {
+    collectors.set('threads', new ThreadsCollector(config.threads.accessToken));
   }
 
   // Init classifiers
