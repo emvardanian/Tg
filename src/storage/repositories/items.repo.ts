@@ -23,6 +23,8 @@ export interface Item {
   comments: number | null;
   published: number;
   telegram_message_id: number | null;
+  pipeline_post: string | null;
+  should_pin: number;
   discovered_at: string;
   published_at: string | null;
 }
@@ -113,6 +115,20 @@ export class ItemsRepo {
 
   saveSummary(id: number, summary: string): void {
     this.db.prepare('UPDATE items SET summary = ? WHERE id = ?').run(summary, id);
+  }
+
+  savePipelineResult(
+    id: number,
+    pipelinePost: string,
+    classifierScore: number,
+    category: string,
+    shouldPin: boolean,
+  ): void {
+    this.db
+      .prepare(
+        'UPDATE items SET pipeline_post = ?, classifier_score = ?, category = ?, classified_by = ?, should_pin = ? WHERE id = ?',
+      )
+      .run(pipelinePost, classifierScore, category, 'pipeline', shouldPin ? 1 : 0, id);
   }
 
   findByTitle(title: string): Item | undefined {

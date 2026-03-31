@@ -118,6 +118,8 @@ export function createDatabase(dbPath: string): Database {
   if (!cols.includes('stars_today')) db.exec('ALTER TABLE items ADD COLUMN stars_today INTEGER');
   if (!cols.includes('upvotes')) db.exec('ALTER TABLE items ADD COLUMN upvotes INTEGER');
   if (!cols.includes('comments')) db.exec('ALTER TABLE items ADD COLUMN comments INTEGER');
+  if (!cols.includes('pipeline_post')) db.exec('ALTER TABLE items ADD COLUMN pipeline_post TEXT');
+  if (!cols.includes('should_pin')) db.exec('ALTER TABLE items ADD COLUMN should_pin INTEGER DEFAULT 0');
 
   return db;
 }

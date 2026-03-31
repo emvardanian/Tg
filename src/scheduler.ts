@@ -7,7 +7,7 @@ import type { FeedbackRepo } from './storage/repositories/feedback.repo.js';
 import type { Collector, CollectedItem } from './collectors/base.collector.js';
 import { withTimeout, RateLimitError } from './collectors/base.collector.js';
 import { HeuristicClassifier } from './classifier/heuristic.classifier.js';
-import type { AiClassifier } from './classifier/ai.classifier.js';
+import type { PipelineService } from './pipeline/pipeline.service.js';
 import type { PublishQueue } from './publisher/queue.js';
 import type { TelegramPublisher } from './publisher/telegram.publisher.js';
 import type { DiscoveryDigest } from './discovery/discovery-digest.js';
@@ -24,7 +24,7 @@ interface SchedulerDeps {
   feedbackRepo: FeedbackRepo;
   collectors: Map<string, Collector>;
   heuristicClassifier: HeuristicClassifier;
-  aiClassifier: AiClassifier;
+  pipelineService: PipelineService;
   publishQueue: PublishQueue;
   publisher: TelegramPublisher;
   discoveryDigest: DiscoveryDigest;
@@ -174,8 +174,8 @@ export class Scheduler {
           }
           newCount++;
 
-          // Classify
-          await this.classifyItem(item.id, collected, source);
+          // Process via pipeline
+          await this.processItem(item.id, collected, source);
 
           // Process links for discovery
           if (collected.meta.links?.length) {
@@ -213,62 +213,44 @@ export class Scheduler {
     }
   }
 
-  private async classifyItem(
+  private async processItem(
     itemId: number,
     collected: CollectedItem,
     source: Source,
   ): Promise<void> {
+    const result = await this.deps.pipelineService.process({
+      url: collected.url,
+      title: collected.title,
+      snippet: collected.contentSnippet ?? undefined,
+      sourceType: source.type,
+      author: source.name,
+    });
+
+    if (result) {
+      // composite_score is 1–5; normalize to 0–1 for the score formula
+      this.deps.itemsRepo.savePipelineResult(
+        itemId,
+        result.telegramPost,
+        result.compositeScore / 5,
+        result.category,
+        result.shouldPin,
+      );
+      return;
+    }
+
+    // Pipeline failed — fall back to heuristic so the item still gets published
     const heuristic = this.deps.heuristicClassifier.classify({
       title: collected.title,
       contentSnippet: collected.contentSnippet,
       sourceCategory: source.category ?? undefined,
       sourceType: source.type,
     });
-
-    if (heuristic.confidence >= 0.5) {
-      this.deps.itemsRepo.updateClassification(itemId, {
-        category: heuristic.category,
-        contentType: heuristic.contentType,
-        classifiedBy: 'heuristic',
-        score: heuristic.confidence,
-      });
-    } else {
-      // Fallback to AI
-      const aiResult = await this.deps.aiClassifier.classify({
-        title: collected.title,
-        sourceName: source.name,
-        snippet: collected.contentSnippet ?? collected.title,
-      });
-
-      if (aiResult) {
-        this.deps.itemsRepo.updateClassification(itemId, {
-          category: aiResult.category,
-          contentType: aiResult.contentType,
-          classifiedBy: 'ai',
-          score: 0.8,
-        });
-      } else {
-        // AI unavailable — use heuristic even with low confidence
-        this.deps.itemsRepo.updateClassification(itemId, {
-          category: heuristic.category,
-          contentType: heuristic.contentType,
-          classifiedBy: 'heuristic',
-          score: heuristic.confidence,
-        });
-      }
-    }
-
-    // Generate summary for long-form content
-    if ((collected.wordCount ?? 0) > 400) {
-      const summary = await this.deps.aiClassifier.generateSummary({
-        url: collected.url,
-        snippet: collected.contentSnippet ?? collected.title,
-        title: collected.title,
-      });
-      if (summary) {
-        this.deps.itemsRepo.saveSummary(itemId, summary);
-      }
-    }
+    this.deps.itemsRepo.updateClassification(itemId, {
+      category: heuristic.category,
+      contentType: heuristic.contentType,
+      classifiedBy: 'heuristic',
+      score: heuristic.confidence,
+    });
   }
 
   private async publishPending(): Promise<void> {

@@ -12,24 +12,33 @@ export class TelegramPublisher {
   ) {}
 
   async publish(item: Item): Promise<number> {
-    const source = this.getSource(item.source_id);
+    let text: string;
+    let parseMode: 'HTML' | undefined;
 
-    const text = formatMessage({
-      category: item.category ?? 'it',
-      contentType: item.content_type ?? 'article',
-      title: item.title,
-      contentSnippet: item.content_snippet ?? undefined,
-      summary: item.summary ?? undefined,
-      url: item.url,
-      sourceName: source?.name ?? 'Unknown',
-      wordCount: item.word_count ?? undefined,
-      stars: item.stars ?? undefined,
-      starsToday: item.stars_today ?? undefined,
-      upvotes: item.upvotes ?? undefined,
-      comments: item.comments ?? undefined,
-    });
+    if (item.pipeline_post) {
+      text = item.pipeline_post;
+      parseMode = 'HTML';
+    } else {
+      const source = this.getSource(item.source_id);
+      text = formatMessage({
+        category: item.category ?? 'it',
+        contentType: item.content_type ?? 'article',
+        title: item.title,
+        contentSnippet: item.content_snippet ?? undefined,
+        summary: item.summary ?? undefined,
+        url: item.url,
+        sourceName: source?.name ?? 'Unknown',
+        wordCount: item.word_count ?? undefined,
+        stars: item.stars ?? undefined,
+        starsToday: item.stars_today ?? undefined,
+        upvotes: item.upvotes ?? undefined,
+        comments: item.comments ?? undefined,
+      });
+      parseMode = undefined;
+    }
 
     const msg = await this.bot.api.sendMessage(this.channelId, text, {
+      parse_mode: parseMode,
       link_preview_options: { is_disabled: true },
     });
 

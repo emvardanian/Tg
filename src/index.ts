@@ -19,8 +19,9 @@ import { GitHubTrendingCollector } from './collectors/github-trending.collector.
 import { WebSearchCollector } from './collectors/web-search.collector.js';
 import { SearchService } from './search/search.service.js';
 import { ThreadsCollector } from './collectors/threads.collector.js';
+import { join } from 'path';
 import { HeuristicClassifier } from './classifier/heuristic.classifier.js';
-import { AiClassifier } from './classifier/ai.classifier.js';
+import { PipelineService } from './pipeline/pipeline.service.js';
 import { TelegramPublisher } from './publisher/telegram.publisher.js';
 import { PublishQueue } from './publisher/queue.js';
 import { DiscoveryDigest } from './discovery/discovery-digest.js';
@@ -90,9 +91,10 @@ async function main(): Promise<void> {
     collectors.set('threads', new ThreadsCollector(config.threads.accessToken));
   }
 
-  // Init classifiers
+  // Init classifiers + pipeline
   const heuristicClassifier = new HeuristicClassifier();
-  const aiClassifier = new AiClassifier(usageRepo);
+  const pipelineService = new PipelineService(join(process.cwd(), 'prompts'), usageRepo);
+  await pipelineService.loadPrompts();
 
   // Init publisher
   const publisher = new TelegramPublisher(
@@ -107,7 +109,7 @@ async function main(): Promise<void> {
       itemsRepo.markPublished(item.id, msgId);
       return msgId;
     },
-    { minIntervalMs: 180_000, maxPerHour: 15, maxQueueSize: 50 },
+    { minIntervalMs: 1_200_000, maxPerHour: 3, maxQueueSize: 50 },
   );
 
   // Init discovery
@@ -128,7 +130,7 @@ async function main(): Promise<void> {
     feedbackRepo,
     collectors,
     heuristicClassifier,
-    aiClassifier,
+    pipelineService,
     publishQueue,
     publisher,
     discoveryDigest,

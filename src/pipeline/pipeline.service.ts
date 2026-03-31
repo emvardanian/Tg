@@ -1,0 +1,190 @@
+import { execFile } from 'child_process';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
+import { extract } from '@extractus/article-extractor';
+import { logger } from '../logger.js';
+import type { UsageRepo } from '../storage/repositories/usage.repo.js';
+import type {
+  ExtractionResult,
+  AnalysisResult,
+  SummaryResult,
+  TelegramPostResult,
+  PipelineResult,
+} from './types.js';
+
+const SOURCE_TYPE_MAP: Record<string, string> = {
+  youtube: 'youtube_transcript',
+  threads: 'threads_post',
+  github: 'github_release',
+  hn: 'news_article',
+  reddit: 'news_article',
+  producthunt: 'other',
+  search: 'news_article',
+  rss: 'blog_post',
+};
+
+function execFileAsync(cmd: string, args: string[], opts: { timeout: number }): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile(cmd, args, opts, (err, stdout) => {
+      if (err) reject(err);
+      else resolve(stdout);
+    });
+  });
+}
+
+function parseJson<T>(raw: string): T {
+  const trimmed = raw.trim();
+  try {
+    return JSON.parse(trimmed) as T;
+  } catch {
+    // Find the first balanced JSON object in the output
+    const start = trimmed.indexOf('{');
+    if (start === -1) throw new Error(`No JSON object found: ${raw.slice(0, 300)}`);
+    let depth = 0;
+    let end = -1;
+    for (let i = start; i < trimmed.length; i++) {
+      if (trimmed[i] === '{') depth++;
+      else if (trimmed[i] === '}') {
+        depth--;
+        if (depth === 0) { end = i; break; }
+      }
+    }
+    if (end === -1) throw new Error(`Unclosed JSON object: ${raw.slice(0, 300)}`);
+    return JSON.parse(trimmed.slice(start, end + 1)) as T;
+  }
+}
+
+export class PipelineService {
+  private prompts = new Map<string, string>();
+
+  constructor(
+    private promptsDir: string,
+    private usageRepo: UsageRepo,
+  ) {}
+
+  async loadPrompts(): Promise<void> {
+    const names = [
+      '00_user_profile',
+      '01_extraction',
+      '02_analysis',
+      '03_summary',
+      '04_translate_format',
+    ];
+    await Promise.all(
+      names.map(async (name) => {
+        const content = await readFile(join(this.promptsDir, `${name}.md`), 'utf-8');
+        this.prompts.set(name, content);
+      }),
+    );
+    logger.info('Pipeline prompts loaded', { count: this.prompts.size, dir: this.promptsDir });
+  }
+
+  private async runClaude(systemPrompt: string, userMessage: string): Promise<string> {
+    const stdout = await execFileAsync(
+      'claude',
+      ['--tools', '', '--no-session-persistence', '--system-prompt', systemPrompt, '-p', userMessage],
+      { timeout: 60_000 },
+    );
+    this.usageRepo.log({ inputTokens: 0, outputTokens: 0, costUsd: 0 });
+    return stdout.trim();
+  }
+
+  async process(input: {
+    url: string;
+    title: string;
+    snippet?: string;
+    sourceType: string;
+    author?: string;
+  }): Promise<PipelineResult | null> {
+    // Fetch full article content; fall back to snippet on failure
+    let content: string;
+    try {
+      const article = await extract(input.url);
+      content = article?.content ?? input.snippet ?? input.title;
+    } catch {
+      content = input.snippet ?? input.title;
+    }
+
+    const pipelineSourceType = SOURCE_TYPE_MAP[input.sourceType] ?? 'other';
+
+    try {
+      // ── Step 1: Extraction ──────────────────────────────────────────────────
+      const sourceXml = [
+        '<source>',
+        `  <type>${pipelineSourceType}</type>`,
+        `  <url>${input.url}</url>`,
+        `  <author>${input.author ?? 'unknown'}</author>`,
+        `  <published_date>unknown</published_date>`,
+        `  <raw_content>`,
+        content.slice(0, 8000),
+        `  </raw_content>`,
+        '</source>',
+      ].join('\n');
+
+      const extractionRaw = await this.runClaude(this.prompts.get('01_extraction')!, sourceXml);
+      const extraction = parseJson<ExtractionResult>(extractionRaw);
+      logger.debug('Pipeline step 1 done', { url: input.url });
+
+      // ── Step 2: Analysis ────────────────────────────────────────────────────
+      const analysisInput = [
+        '<extraction>',
+        JSON.stringify(extraction),
+        '</extraction>',
+        '',
+        '<user_profile>',
+        this.prompts.get('00_user_profile')!,
+        '</user_profile>',
+      ].join('\n');
+
+      const analysisRaw = await this.runClaude(this.prompts.get('02_analysis')!, analysisInput);
+      const analysis = parseJson<AnalysisResult>(analysisRaw);
+      logger.debug('Pipeline step 2 done', {
+        url: input.url,
+        score: analysis.analysis.composite_score,
+        category: analysis.analysis.category,
+      });
+
+      // ── Step 3: Summary ─────────────────────────────────────────────────────
+      const summaryInput = [
+        '<extraction>',
+        JSON.stringify(extraction),
+        '</extraction>',
+        '',
+        '<analysis>',
+        JSON.stringify(analysis),
+        '</analysis>',
+      ].join('\n');
+
+      const summaryRaw = await this.runClaude(this.prompts.get('03_summary')!, summaryInput);
+      const summary = parseJson<SummaryResult>(summaryRaw);
+      logger.debug('Pipeline step 3 done', { url: input.url });
+
+      // ── Step 4: Translate & Format ──────────────────────────────────────────
+      const formatInput = [
+        '<summary>',
+        JSON.stringify(summary),
+        '</summary>',
+        '',
+        '<analysis>',
+        JSON.stringify(analysis),
+        '</analysis>',
+        '',
+        `<source_url>${input.url}</source_url>`,
+      ].join('\n');
+
+      const formatRaw = await this.runClaude(this.prompts.get('04_translate_format')!, formatInput);
+      const post = parseJson<TelegramPostResult>(formatRaw);
+      logger.debug('Pipeline step 4 done', { url: input.url });
+
+      return {
+        telegramPost: post.telegram_post.text,
+        compositeScore: post.telegram_post.metadata.composite_score,
+        category: post.telegram_post.metadata.category,
+        shouldPin: post.telegram_post.metadata.should_pin,
+      };
+    } catch (err) {
+      logger.error('Pipeline failed', { url: input.url, error: (err as Error).message });
+      return null;
+    }
+  }
+}
