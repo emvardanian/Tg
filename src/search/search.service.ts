@@ -36,15 +36,12 @@ export class SearchService {
   ) {}
 
   async search(query: string, maxResults = 10): Promise<SearchResult[]> {
+    if (!query.trim()) return [];
     try {
       return await this.searchTavily(query, maxResults);
     } catch (err) {
-      const msg = (err as Error).message;
-      if (msg.includes('quota') || msg.includes('429') || msg.includes('limit') || msg.toLowerCase().includes('too many')) {
-        logger.warn('Tavily quota/rate limit, falling back to Brave Search', { query });
-        return await this.searchBrave(query, maxResults);
-      }
-      throw err;
+      logger.warn('Tavily failed, falling back to Brave Search', { query, error: (err as Error).message });
+      return await this.searchBrave(query, maxResults);
     }
   }
 
@@ -59,6 +56,7 @@ export class SearchService {
         max_results: maxResults,
         include_published_date: true,
       }),
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (!res.ok) {
@@ -67,7 +65,7 @@ export class SearchService {
     }
 
     const data = (await res.json()) as TavilyResponse;
-    return data.results.map((r) => ({
+    return (data.results ?? []).map((r) => ({
       title: r.title,
       url: r.url,
       snippet: r.content.slice(0, 500),
@@ -83,10 +81,12 @@ export class SearchService {
         'Accept-Encoding': 'gzip',
         'X-Subscription-Token': this.braveKey,
       },
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (!res.ok) {
-      throw new Error(`Brave Search error ${res.status}`);
+      const body = await res.text();
+      throw new Error(`Brave Search error ${res.status}: ${body}`);
     }
 
     const data = (await res.json()) as BraveResponse;

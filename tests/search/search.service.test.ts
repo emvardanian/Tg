@@ -91,10 +91,38 @@ describe('SearchService', () => {
   it('throws if both Tavily and Brave fail', async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce({ ok: false, text: async () => 'quota exceeded' } as any)
-      .mockResolvedValueOnce({ ok: false } as any);
+      .mockResolvedValueOnce({ ok: false, text: async () => 'Service Unavailable' } as any);
 
     const service = new SearchService('tavily-key', 'brave-key');
-    await expect(service.search('query', 5)).rejects.toThrow();
+    await expect(service.search('query', 5)).rejects.toThrow('Brave Search error');
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('falls back to Brave when Tavily returns server error (500)', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({ ok: false, text: async () => 'Internal Server Error' } as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          web: {
+            results: [
+              {
+                title: 'Brave Fallback',
+                url: 'https://brave.com/fallback',
+                description: 'Fallback snippet.',
+                age: '2026-03-31',
+              },
+            ],
+          },
+        }),
+      } as any);
+
+    const service = new SearchService('tavily-key', 'brave-key');
+    const results = await service.search('artificial intelligence', 5);
+
+    expect(results).toHaveLength(1);
+    expect(results[0].title).toBe('Brave Fallback');
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it('returns empty array when Tavily returns no results', async () => {
