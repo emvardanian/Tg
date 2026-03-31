@@ -80,11 +80,7 @@ async function main(): Promise<void> {
 
   // Init classifiers
   const heuristicClassifier = new HeuristicClassifier();
-  const aiClassifier = new AiClassifier(
-    config.anthropic.apiKey,
-    usageRepo,
-    config.anthropic.monthlyLimitUsd,
-  );
+  const aiClassifier = new AiClassifier(usageRepo);
 
   // Init publisher
   const publisher = new TelegramPublisher(
@@ -125,7 +121,6 @@ async function main(): Promise<void> {
     publisher,
     discoveryDigest,
     adminChatId: config.telegram.adminChatId,
-    monthlyLimitUsd: config.anthropic.monthlyLimitUsd,
     digestMode: config.digest.mode,
     dbPath: config.db.path,
   });

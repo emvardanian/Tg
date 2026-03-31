@@ -49,6 +49,15 @@ export class UsageRepo {
     return row;
   }
 
+  getMonthlyCallCount(): number {
+    const row = this.db
+      .prepare(
+        "SELECT COUNT(*) as total FROM api_usage WHERE date >= date('now', 'start of month')"
+      )
+      .get() as { total: number };
+    return row.total;
+  }
+
   canUseAI(monthlyLimitUsd: number): boolean {
     return this.getMonthlySpend() < monthlyLimitUsd;
   }

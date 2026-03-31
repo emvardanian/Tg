@@ -29,7 +29,6 @@ interface SchedulerDeps {
   publisher: TelegramPublisher;
   discoveryDigest: DiscoveryDigest;
   adminChatId: string;
-  monthlyLimitUsd: number;
   digestMode: 'daily' | 'realtime';
   dbPath: string;
 }
@@ -280,14 +279,12 @@ export class Scheduler {
 
   private async sendCostReport(): Promise<void> {
     const stats = this.deps.usageRepo.getWeeklyStats();
-    const monthly = this.deps.usageRepo.getMonthlySpend();
 
     await this.deps.publisher.sendNotification(
       this.deps.adminChatId,
       `📊 Тижневий звіт:\n` +
-      `• AI виклики: ${stats.totalCalls}\n` +
-      `• Витрати за тиждень: $${stats.totalCostUsd.toFixed(4)}\n` +
-      `• Витрати за місяць: $${monthly.toFixed(4)} / $${this.deps.monthlyLimitUsd}`,
+      `• AI виклики за тиждень: ${stats.totalCalls}\n` +
+      `• AI виклики за місяць: ${this.deps.usageRepo.getMonthlyCallCount()}`,
     );
   }
 }

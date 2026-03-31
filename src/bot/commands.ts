@@ -111,12 +111,13 @@ export function registerCommands(bot: Bot, deps: CommandDeps): void {
   });
 
   bot.command('cost', async (ctx) => {
-    const monthlySpend = usageRepo.getMonthlySpend();
-    const limit = parseFloat(process.env.AI_MONTHLY_LIMIT_USD ?? '5');
+    const monthlyCount = usageRepo.getMonthlyCallCount();
+    const weeklyStats = usageRepo.getWeeklyStats();
 
     await ctx.reply(
-      `\u{1F4B0} \u0412\u0438\u0442\u0440\u0430\u0442\u0438 \u0437\u0430 \u043c\u0456\u0441\u044f\u0446\u044c:\n` +
-      `$${monthlySpend.toFixed(4)} / $${limit.toFixed(2)} (${((monthlySpend / limit) * 100).toFixed(1)}%)`
+      `🤖 AI виклики (Claude CLI):\n` +
+      `• За тиждень: ${weeklyStats.totalCalls}\n` +
+      `• За місяць: ${monthlyCount}`
     );
   });
 

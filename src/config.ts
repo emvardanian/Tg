@@ -20,10 +20,6 @@ export interface AppConfig {
     channelId: string;
     adminChatId: string;
   };
-  anthropic: {
-    apiKey: string;
-    monthlyLimitUsd: number;
-  };
   youtube: {
     apiKey: string;
   };
@@ -61,10 +57,6 @@ export function loadConfig(sourcesPath: string): AppConfig {
       botToken: process.env.TELEGRAM_BOT_TOKEN ?? '',
       channelId: process.env.TELEGRAM_CHANNEL_ID ?? '',
       adminChatId: process.env.TELEGRAM_ADMIN_CHAT_ID ?? '',
-    },
-    anthropic: {
-      apiKey: process.env.ANTHROPIC_API_KEY ?? '',
-      monthlyLimitUsd: parseFloat(process.env.AI_MONTHLY_LIMIT_USD ?? '5'),
     },
     youtube: {
       apiKey: process.env.YOUTUBE_API_KEY ?? '',
