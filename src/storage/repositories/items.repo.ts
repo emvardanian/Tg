@@ -47,9 +47,13 @@ interface ClassificationInput {
   score: number;
 }
 
+// Minimum title length for title-based deduplication (short/generic titles skipped)
+const MIN_TITLE_LENGTH_FOR_DEDUP = 20;
+
 export class ItemsRepo {
   private insertStmt;
   private getByIdStmt;
+  private findByTitleStmt;
 
   constructor(private db: Database) {
     this.insertStmt = db.prepare(`
@@ -57,6 +61,12 @@ export class ItemsRepo {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     this.getByIdStmt = db.prepare('SELECT * FROM items WHERE id = ?');
+    this.findByTitleStmt = db.prepare(`
+      SELECT * FROM items
+      WHERE LOWER(TRIM(title)) = LOWER(TRIM(?))
+        AND datetime(discovered_at) > datetime('now', '-30 days')
+      LIMIT 1
+    `);
   }
 
   insertIfNew(input: InsertInput): Item | null {
@@ -103,6 +113,11 @@ export class ItemsRepo {
 
   saveSummary(id: number, summary: string): void {
     this.db.prepare('UPDATE items SET summary = ? WHERE id = ?').run(summary, id);
+  }
+
+  findByTitle(title: string): Item | undefined {
+    if (title.trim().length < MIN_TITLE_LENGTH_FOR_DEDUP) return undefined;
+    return this.findByTitleStmt.get(title) as Item | undefined;
   }
 
   findByNormalizedUrl(url: string): Item | undefined {

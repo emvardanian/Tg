@@ -138,6 +138,16 @@ export class Scheduler {
 
         let newCount = 0;
         for (const collected of items) {
+          // Title-based dedup: same headline seen recently from another source
+          const titleMatch = this.deps.itemsRepo.findByTitle(collected.title);
+          if (titleMatch) {
+            this.deps.itemsRepo.addSighting(titleMatch.id, source.id, {
+              upvotes: collected.meta.upvotes,
+              comments: collected.meta.comments,
+            });
+            continue;
+          }
+
           const item = this.deps.itemsRepo.insertIfNew({
             sourceId: source.id,
             externalId: collected.externalId,
@@ -152,7 +162,7 @@ export class Scheduler {
           });
 
           if (!item) {
-            // Cross-source sighting
+            // URL-based duplicate — record sighting
             const existing = this.deps.itemsRepo.findByNormalizedUrl(collected.url);
             if (existing) {
               this.deps.itemsRepo.addSighting(existing.id, source.id, {
