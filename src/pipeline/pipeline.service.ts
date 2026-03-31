@@ -1,7 +1,6 @@
 import { execFile } from 'child_process';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { extract } from '@extractus/article-extractor';
 import { logger } from '../logger.js';
 import type { UsageRepo } from '../storage/repositories/usage.repo.js';
 import type {
@@ -79,11 +78,12 @@ export class PipelineService {
     logger.info('Pipeline prompts loaded', { count: this.prompts.size, dir: this.promptsDir });
   }
 
-  private async runClaude(systemPrompt: string, userMessage: string): Promise<string> {
+  private async runClaude(systemPrompt: string, userMessage: string, tools = ''): Promise<string> {
+    const timeout = tools ? 120_000 : 60_000;
     const stdout = await execFileAsync(
       'claude',
-      ['--tools', '', '--no-session-persistence', '--system-prompt', systemPrompt, '-p', userMessage],
-      { timeout: 60_000 },
+      ['--tools', tools, '--no-session-persistence', '--system-prompt', systemPrompt, '-p', userMessage],
+      { timeout },
     );
     this.usageRepo.log({ inputTokens: 0, outputTokens: 0, costUsd: 0 });
     return stdout.trim();
@@ -96,32 +96,22 @@ export class PipelineService {
     sourceType: string;
     author?: string;
   }): Promise<PipelineResult | null> {
-    // Fetch full article content; fall back to snippet on failure
-    let content: string;
-    try {
-      const article = await extract(input.url);
-      content = article?.content ?? input.snippet ?? input.title;
-    } catch {
-      content = input.snippet ?? input.title;
-    }
-
     const pipelineSourceType = SOURCE_TYPE_MAP[input.sourceType] ?? 'other';
 
     try {
-      // ── Step 1: Extraction ──────────────────────────────────────────────────
+      // ── Step 1: Extraction (Claude fetches the URL via WebFetch) ─────────────
       const sourceXml = [
         '<source>',
         `  <type>${pipelineSourceType}</type>`,
         `  <url>${input.url}</url>`,
         `  <author>${input.author ?? 'unknown'}</author>`,
         `  <published_date>unknown</published_date>`,
-        `  <raw_content>`,
-        content.slice(0, 8000),
-        `  </raw_content>`,
+        `  <title_hint>${input.title}</title_hint>`,
+        `  <snippet_hint>${(input.snippet ?? '').slice(0, 1000)}</snippet_hint>`,
         '</source>',
       ].join('\n');
 
-      const extractionRaw = await this.runClaude(this.prompts.get('01_extraction')!, sourceXml);
+      const extractionRaw = await this.runClaude(this.prompts.get('01_extraction')!, sourceXml, 'WebFetch');
       const extraction = parseJson<ExtractionResult>(extractionRaw);
       logger.debug('Pipeline step 1 done', { url: input.url });
 
