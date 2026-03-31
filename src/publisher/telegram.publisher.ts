@@ -2,7 +2,6 @@ import type { Bot } from 'grammy';
 import type { Item } from '../storage/repositories/items.repo.js';
 import type { Source } from '../storage/repositories/sources.repo.js';
 import { formatMessage } from './formatter.js';
-import { InlineKeyboard } from 'grammy';
 import { logger } from '../logger.js';
 
 export class TelegramPublisher {
@@ -30,12 +29,7 @@ export class TelegramPublisher {
       comments: item.comments ?? undefined,
     });
 
-    const keyboard = new InlineKeyboard()
-      .text('\u{1F44D}', `vote:${item.id}:up`)
-      .text('\u{1F44E}', `vote:${item.id}:down`);
-
     const msg = await this.bot.api.sendMessage(this.channelId, text, {
-      reply_markup: keyboard,
       link_preview_options: { is_disabled: true },
     });
 
