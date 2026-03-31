@@ -5,7 +5,7 @@ import 'dotenv/config';
 export interface SourceConfig {
   name: string;
   url: string;
-  type: 'rss' | 'youtube' | 'hn' | 'reddit' | 'producthunt' | 'github';
+  type: 'rss' | 'youtube' | 'hn' | 'reddit' | 'producthunt' | 'github' | 'search' | 'threads';
   category?: string;
 }
 
@@ -22,6 +22,10 @@ export interface AppConfig {
   };
   youtube: {
     apiKey: string;
+  };
+  search: {
+    tavilyKey: string;
+    braveKey: string;
   };
   db: {
     path: string;
@@ -60,6 +64,10 @@ export function loadConfig(sourcesPath: string): AppConfig {
     },
     youtube: {
       apiKey: process.env.YOUTUBE_API_KEY ?? '',
+    },
+    search: {
+      tavilyKey: process.env.TAVILY_API_KEY ?? '',
+      braveKey: process.env.BRAVE_SEARCH_API_KEY ?? '',
     },
     db: {
       path: process.env.DB_PATH ?? './data/aggregator.db',

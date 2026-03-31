@@ -16,6 +16,8 @@ import { RedditCollector } from './collectors/reddit.collector.js';
 import { YouTubeCollector } from './collectors/youtube.collector.js';
 import { ProductHuntCollector } from './collectors/producthunt.collector.js';
 import { GitHubTrendingCollector } from './collectors/github-trending.collector.js';
+import { WebSearchCollector } from './collectors/web-search.collector.js';
+import { SearchService } from './search/search.service.js';
 import { HeuristicClassifier } from './classifier/heuristic.classifier.js';
 import { AiClassifier } from './classifier/ai.classifier.js';
 import { TelegramPublisher } from './publisher/telegram.publisher.js';
@@ -76,6 +78,11 @@ async function main(): Promise<void> {
 
   if (config.youtube.apiKey) {
     collectors.set('youtube', new YouTubeCollector(config.youtube.apiKey));
+  }
+
+  if (config.search.tavilyKey || config.search.braveKey) {
+    const searchService = new SearchService(config.search.tavilyKey, config.search.braveKey);
+    collectors.set('web-search', new WebSearchCollector(searchService));
   }
 
   // Init classifiers

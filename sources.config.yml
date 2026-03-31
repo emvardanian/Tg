@@ -121,3 +121,19 @@ sources:
     url: https://tldr.tech/rss
     type: rss
     category: it
+
+  # ── Web Search (Tavily / Brave Search) ──
+  - name: AI & LLM News
+    url: "artificial intelligence LLM foundation models 2026"
+    type: search
+    category: ai
+
+  - name: Dev Tools & SaaS
+    url: "developer tools productivity software new release 2026"
+    type: search
+    category: tools
+
+  - name: Tech Startups
+    url: "tech startup funding launch product hunt 2026"
+    type: search
+    category: business
