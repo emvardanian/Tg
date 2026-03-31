@@ -9,8 +9,8 @@ export class WebSearchCollector implements Collector {
 
   constructor(private searchService: SearchService) {}
 
-  async collect(source: Source): Promise<CollectedItem[]> {
-    const results = await this.searchService.search(source.url, 10);
+  async collect(source: Source, signal?: AbortSignal): Promise<CollectedItem[]> {
+    const results = await this.searchService.search(source.url, 10, signal);
 
     return results.map((r) => ({
       externalId: createHash('sha1').update(r.url).digest('hex').slice(0, 32),

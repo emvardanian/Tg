@@ -35,17 +35,17 @@ export class SearchService {
     private braveKey: string,
   ) {}
 
-  async search(query: string, maxResults = 10): Promise<SearchResult[]> {
+  async search(query: string, maxResults = 10, signal?: AbortSignal): Promise<SearchResult[]> {
     if (!query.trim()) return [];
     try {
-      return await this.searchTavily(query, maxResults);
+      return await this.searchTavily(query, maxResults, signal);
     } catch (err) {
       logger.warn('Tavily failed, falling back to Brave Search', { query, error: (err as Error).message });
-      return await this.searchBrave(query, maxResults);
+      return await this.searchBrave(query, maxResults, signal);
     }
   }
 
-  private async searchTavily(query: string, maxResults: number): Promise<SearchResult[]> {
+  private async searchTavily(query: string, maxResults: number, signal?: AbortSignal): Promise<SearchResult[]> {
     const res = await fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -56,7 +56,7 @@ export class SearchService {
         max_results: maxResults,
         include_published_date: true,
       }),
-      signal: AbortSignal.timeout(10_000),
+      signal: signal ?? AbortSignal.timeout(10_000),
     });
 
     if (!res.ok) {
@@ -73,7 +73,7 @@ export class SearchService {
     }));
   }
 
-  private async searchBrave(query: string, maxResults: number): Promise<SearchResult[]> {
+  private async searchBrave(query: string, maxResults: number, signal?: AbortSignal): Promise<SearchResult[]> {
     const params = new URLSearchParams({ q: query, count: String(maxResults) });
     const res = await fetch(`https://api.search.brave.com/res/v1/web/search?${params}`, {
       headers: {
@@ -81,7 +81,7 @@ export class SearchService {
         'Accept-Encoding': 'gzip',
         'X-Subscription-Token': this.braveKey,
       },
-      signal: AbortSignal.timeout(10_000),
+      signal: signal ?? AbortSignal.timeout(10_000),
     });
 
     if (!res.ok) {
@@ -94,7 +94,7 @@ export class SearchService {
       title: r.title,
       url: r.url,
       snippet: r.description ?? '',
-      publishedAt: r.age,
+      // publishedAt omitted — Brave returns human-readable 'age', not ISO timestamp
     }));
   }
 }

@@ -49,6 +49,7 @@ describe('WebSearchCollector', () => {
     expect(mockSearchService.search).toHaveBeenCalledWith(
       'artificial intelligence machine learning',
       10,
+      undefined,
     );
   });
 
