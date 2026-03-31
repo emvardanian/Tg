@@ -1,8 +1,16 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { execFile } from 'child_process';
 import { extract } from '@extractus/article-extractor';
 import type { UsageRepo } from '../storage/repositories/usage.repo.js';
-import { calculateCost } from '../pricing.js';
 import { logger } from '../logger.js';
+
+function execFileAsync(cmd: string, args: string[], opts: { timeout: number }): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile(cmd, args, opts, (err, stdout) => {
+      if (err) reject(err);
+      else resolve(stdout);
+    });
+  });
+}
 
 interface AiClassifyInput {
   title: string;
@@ -21,70 +29,42 @@ interface GenerateSummaryInput {
   title: string;
 }
 
-export class AiClassifier {
-  private client: Anthropic;
+const VALID_CATEGORIES = ['ai', 'business', 'finance', 'product', 'tools', 'career', 'it'];
+const VALID_CONTENT_TYPES = ['article', 'video', 'discussion', 'tool', 'repo'];
 
-  constructor(
-    apiKey: string,
-    private usageRepo: UsageRepo,
-    private monthlyLimitUsd: number,
-  ) {
-    this.client = new Anthropic({ apiKey });
+export class AiClassifier {
+  constructor(private usageRepo: UsageRepo) {}
+
+  private async runClaude(prompt: string): Promise<string> {
+    const stdout = await execFileAsync('claude', ['-p', prompt], {
+      timeout: 30_000,
+    });
+    return stdout.trim();
   }
 
   async classify(input: AiClassifyInput): Promise<AiClassifyResult | null> {
-    if (!this.usageRepo.canUseAI(this.monthlyLimitUsd)) {
-      logger.warn('AI budget exhausted, skipping classification');
-      return null;
-    }
+    const prompt =
+      `Classify this tech article. Reply ONLY with valid JSON, no explanation or markdown.\n\n` +
+      `Title: "${input.title}"\n` +
+      `Source: ${input.sourceName}\n` +
+      `Snippet: ${input.snippet.slice(0, 500)}\n\n` +
+      `Required JSON format:\n` +
+      `{"category":"<one of: ai|business|finance|product|tools|career|it>","contentType":"<one of: article|video|discussion|tool|repo>"}`;
 
     try {
-      const response = await this.client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 100,
-        system: 'You classify tech content into categories.',
-        messages: [
-          {
-            role: 'user',
-            content: `Classify: "${input.title}" from ${input.sourceName}. Snippet: ${input.snippet.slice(0, 500)}`,
-          },
-        ],
-        tools: [
-          {
-            name: 'classify',
-            description: 'Classify a tech content item',
-            input_schema: {
-              type: 'object' as const,
-              properties: {
-                category: {
-                  type: 'string',
-                  enum: ['ai', 'business', 'finance', 'product', 'tools', 'career', 'it'],
-                },
-                contentType: {
-                  type: 'string',
-                  enum: ['article', 'video', 'discussion', 'tool', 'repo'],
-                },
-              },
-              required: ['category', 'contentType'],
-            },
-          },
-        ],
-        tool_choice: { type: 'tool', name: 'classify' },
-      });
-
-      const toolBlock = response.content.find((b) => b.type === 'tool_use');
-      if (!toolBlock || toolBlock.type !== 'tool_use') return null;
-
-      const parsed = toolBlock.input as AiClassifyResult;
-
-      const costUsd = calculateCost(response.usage.input_tokens, response.usage.output_tokens);
-
-      this.usageRepo.log({
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-        costUsd,
-      });
-
+      const raw = await this.runClaude(prompt);
+      const jsonMatch = raw.match(/\{[\s\S]*?\}/);
+      if (!jsonMatch) {
+        logger.warn('AI classification returned no JSON', { raw: raw.slice(0, 200) });
+        return null;
+      }
+      const parsed = JSON.parse(jsonMatch[0]) as AiClassifyResult;
+      if (!VALID_CATEGORIES.includes(parsed.category) || !VALID_CONTENT_TYPES.includes(parsed.contentType)) {
+        logger.warn('AI classification returned invalid values', { parsed });
+        return null;
+      }
+      // Claude CLI does not expose token counts; log the call for frequency tracking only
+      this.usageRepo.log({ inputTokens: 0, outputTokens: 0, costUsd: 0 });
       return parsed;
     } catch (err) {
       logger.error('AI classification failed', { error: (err as Error).message });
@@ -93,11 +73,6 @@ export class AiClassifier {
   }
 
   async generateSummary(input: GenerateSummaryInput): Promise<string | null> {
-    if (!this.usageRepo.canUseAI(this.monthlyLimitUsd)) {
-      logger.warn('AI budget exhausted, skipping summary generation');
-      return null;
-    }
-
     let text: string;
     try {
       const article = await extract(input.url);
@@ -107,29 +82,13 @@ export class AiClassifier {
       text = input.snippet ?? input.title;
     }
 
+    const prompt = `Summarize this article in 3-5 sentences in Ukrainian:\n\n${text.slice(0, 4000)}`;
+
     try {
-      const response = await this.client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 300,
-        messages: [
-          {
-            role: 'user',
-            content: `Summarize this article in 3-5 sentences in Ukrainian:\n\n${text.slice(0, 4000)}`,
-          },
-        ],
-      });
-
-      const firstBlock = response.content[0];
-      const summary = firstBlock?.type === 'text' ? firstBlock.text : null;
+      const summary = await this.runClaude(prompt);
       if (!summary) return null;
-
-      const costUsd = calculateCost(response.usage.input_tokens, response.usage.output_tokens);
-      this.usageRepo.log({
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-        costUsd,
-      });
-
+      // Claude CLI does not expose token counts; log the call for frequency tracking only
+      this.usageRepo.log({ inputTokens: 0, outputTokens: 0, costUsd: 0 });
       return summary;
     } catch (err) {
       logger.error('Summary generation failed', { url: input.url, error: (err as Error).message });

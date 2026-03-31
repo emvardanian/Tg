@@ -1,16 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { execFile } from 'child_process';
 import { AiClassifier } from '../../src/classifier/ai.classifier.js';
 import type { UsageRepo } from '../../src/storage/repositories/usage.repo.js';
-import { UsageRepo as UsageRepoClass } from '../../src/storage/repositories/usage.repo.js';
-import { createDatabase } from '../../src/storage/db.js';
 
-const mockCreate = vi.fn();
-
-vi.mock('@anthropic-ai/sdk', () => ({
-  default: class MockAnthropic {
-    messages = { create: mockCreate };
-  },
-}));
+vi.mock('child_process', () => ({ execFile: vi.fn() }));
 
 vi.mock('@extractus/article-extractor', () => ({
   extract: vi.fn(),
@@ -20,130 +13,152 @@ describe('AiClassifier', () => {
   let mockUsageRepo: UsageRepo;
 
   beforeEach(() => {
-    mockCreate.mockReset();
+    vi.resetAllMocks();
     mockUsageRepo = {
-      canUseAI: vi.fn().mockReturnValue(true),
       log: vi.fn(),
     } as unknown as UsageRepo;
   });
 
-  it('classifies an item via Claude Haiku', async () => {
-    mockCreate.mockResolvedValue({
-      content: [{ type: 'tool_use', name: 'classify', input: { category: 'ai', contentType: 'article' } }],
-      usage: { input_tokens: 300, output_tokens: 30 },
+  describe('classify', () => {
+    it('parses JSON from Claude CLI and returns result', async () => {
+      vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback: any) => {
+        callback(null, '{"category":"ai","contentType":"article"}', '');
+        return {} as any;
+      });
+
+      const classifier = new AiClassifier(mockUsageRepo);
+      const result = await classifier.classify({
+        title: 'Training GPT models',
+        sourceName: 'Some Blog',
+        snippet: 'A post about training large language models',
+      });
+
+      expect(result).toEqual({ category: 'ai', contentType: 'article' });
+      expect(mockUsageRepo.log).toHaveBeenCalledWith({ inputTokens: 0, outputTokens: 0, costUsd: 0 });
     });
 
-    const classifier = new AiClassifier('fake-key', mockUsageRepo, 5);
-    const result = await classifier.classify({
-      title: 'Training GPT models',
-      sourceName: 'Some Blog',
-      snippet: 'A post about training large language models',
+    it('returns null if Claude CLI returns invalid JSON', async () => {
+      vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback: any) => {
+        callback(null, 'Sorry, I cannot classify this.', '');
+        return {} as any;
+      });
+
+      const classifier = new AiClassifier(mockUsageRepo);
+      const result = await classifier.classify({
+        title: 'Some Post',
+        sourceName: 'Blog',
+        snippet: 'Content',
+      });
+
+      expect(result).toBeNull();
     });
 
-    expect(result).toEqual({ category: 'ai', contentType: 'article' });
-    expect(mockUsageRepo.log).toHaveBeenCalled();
-  });
+    it('returns null if JSON has invalid enum values', async () => {
+      vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback: any) => {
+        callback(null, '{"category":"invalid","contentType":"article"}', '');
+        return {} as any;
+      });
 
-  it('returns null when budget exhausted', async () => {
-    (mockUsageRepo.canUseAI as ReturnType<typeof vi.fn>).mockReturnValue(false);
+      const classifier = new AiClassifier(mockUsageRepo);
+      const result = await classifier.classify({
+        title: 'Some Post',
+        sourceName: 'Blog',
+        snippet: 'Content',
+      });
 
-    const classifier = new AiClassifier('fake-key', mockUsageRepo, 5);
-    const result = await classifier.classify({
-      title: 'Some Post',
-      sourceName: 'Blog',
-      snippet: 'Content',
+      expect(result).toBeNull();
     });
 
-    expect(result).toBeNull();
-    expect(mockCreate).not.toHaveBeenCalled();
-  });
+    it('returns null if subprocess throws', async () => {
+      vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback: any) => {
+        callback(new Error('claude: command not found'), '', '');
+        return {} as any;
+      });
 
-  it('returns null on API error', async () => {
-    mockCreate.mockRejectedValue(new Error('API error'));
+      const classifier = new AiClassifier(mockUsageRepo);
+      const result = await classifier.classify({
+        title: 'Some Post',
+        sourceName: 'Blog',
+        snippet: 'Content',
+      });
 
-    const classifier = new AiClassifier('fake-key', mockUsageRepo, 5);
-    const result = await classifier.classify({
-      title: 'Some Post',
-      sourceName: 'Blog',
-      snippet: 'Content',
+      expect(result).toBeNull();
     });
 
-    expect(result).toBeNull();
+    it('parses JSON wrapped in markdown code block', async () => {
+      vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback: any) => {
+        callback(null, '```json\n{"category":"tools","contentType":"tool"}\n```', '');
+        return {} as any;
+      });
+
+      const classifier = new AiClassifier(mockUsageRepo);
+      const result = await classifier.classify({
+        title: 'A new CLI tool',
+        sourceName: 'GitHub',
+        snippet: 'A useful tool',
+      });
+
+      expect(result).toEqual({ category: 'tools', contentType: 'tool' });
+    });
   });
 
   describe('generateSummary', () => {
-    it('returns null when budget is exhausted', async () => {
-      (mockUsageRepo.canUseAI as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    it('returns text from stdout', async () => {
+      const { extract } = await import('@extractus/article-extractor');
+      vi.mocked(extract).mockRejectedValue(new Error('Extraction failed'));
 
-      const classifier = new AiClassifier('fake-key', mockUsageRepo, 5);
+      vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback: any) => {
+        callback(null, 'Це резюме статті про ШІ.', '');
+        return {} as any;
+      });
+
+      const classifier = new AiClassifier(mockUsageRepo);
       const result = await classifier.generateSummary({
         url: 'https://example.com/article',
         snippet: 'Some snippet',
         title: 'Some title',
       });
 
-      expect(result).toBeNull();
-      expect(mockCreate).not.toHaveBeenCalled();
+      expect(result).toBe('Це резюме статті про ШІ.');
+      expect(mockUsageRepo.log).toHaveBeenCalledWith({ inputTokens: 0, outputTokens: 0, costUsd: 0 });
     });
 
-    it('returns a summary when article extraction fails (falls back to snippet)', async () => {
+    it('returns null if subprocess throws', async () => {
       const { extract } = await import('@extractus/article-extractor');
-      (extract as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Extraction failed'));
+      vi.mocked(extract).mockRejectedValue(new Error('Extraction failed'));
 
-      mockCreate.mockResolvedValue({
-        content: [{ type: 'text', text: 'Fallback summary from snippet.' }],
-        usage: { input_tokens: 100, output_tokens: 20 },
+      vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback: any) => {
+        callback(new Error('timeout'), '', '');
+        return {} as any;
       });
 
-      const classifier = new AiClassifier('fake-key', mockUsageRepo, 5);
+      const classifier = new AiClassifier(mockUsageRepo);
       const result = await classifier.generateSummary({
         url: 'https://example.com/article',
-        snippet: 'Some snippet',
-        title: 'Some title',
-      });
-
-      expect(result).not.toBeNull();
-      expect(typeof result).toBe('string');
-    });
-
-    it('returns null when Claude API call fails', async () => {
-      const { extract } = await import('@extractus/article-extractor');
-      vi.mocked(extract).mockResolvedValue({ content: 'Some article text', url: 'https://example.com', title: 'Test' } as any);
-      mockCreate.mockRejectedValue(new Error('API timeout'));
-
-      const classifier = new AiClassifier('fake-key', mockUsageRepo, 100);
-
-      const result = await classifier.generateSummary({
-        url: 'https://example.com/article',
-        snippet: 'snippet text',
-        title: 'Test Article',
+        snippet: 'snippet',
+        title: 'title',
       });
 
       expect(result).toBeNull();
     });
 
-    it('returns a summary on success', async () => {
+    it('uses article content when extraction succeeds', async () => {
       const { extract } = await import('@extractus/article-extractor');
       vi.mocked(extract).mockResolvedValue({ content: 'Full article text.', url: 'https://example.com', title: 'T' } as any);
-      mockCreate.mockResolvedValue({
-        content: [{ type: 'text', text: 'Резюме статті.' }],
-        usage: { input_tokens: 200, output_tokens: 50 },
+
+      vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback: any) => {
+        callback(null, 'Резюме статті.', '');
+        return {} as any;
       });
 
-      const db = createDatabase(':memory:');
-      const usageRepo = new UsageRepoClass(db);
-      const logSpy = vi.spyOn(usageRepo, 'log');
-      const classifier = new AiClassifier('fake-key', usageRepo, 100);
-
+      const classifier = new AiClassifier(mockUsageRepo);
       const result = await classifier.generateSummary({
         url: 'https://example.com/article',
-        snippet: 'snippet text',
-        title: 'Test Article',
+        snippet: 'snippet',
+        title: 'title',
       });
 
       expect(result).toBe('Резюме статті.');
-      expect(logSpy).toHaveBeenCalled();
-      db.close();
     });
   });
 });
