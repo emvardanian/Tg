@@ -37,6 +37,9 @@ export interface AppConfig {
   digest: {
     mode: 'daily' | 'realtime';
   };
+  toolsDigest: {
+    hour: number;
+  };
 }
 
 export function loadConfig(sourcesPath: string): AppConfig {
@@ -56,6 +59,11 @@ export function loadConfig(sourcesPath: string): AppConfig {
   const digestModeRaw = process.env.DIGEST_MODE ?? 'realtime';
   if (digestModeRaw !== 'daily' && digestModeRaw !== 'realtime') {
     throw new Error(`Invalid DIGEST_MODE "${digestModeRaw}". Must be "daily" or "realtime".`);
+  }
+
+  const toolsDigestHour = parseInt(process.env.TOOLS_DIGEST_HOUR ?? '9', 10);
+  if (isNaN(toolsDigestHour) || toolsDigestHour < 0 || toolsDigestHour > 23) {
+    throw new Error(`Invalid TOOLS_DIGEST_HOUR "${process.env.TOOLS_DIGEST_HOUR}". Must be 0-23.`);
   }
 
   return {
@@ -81,6 +89,9 @@ export function loadConfig(sourcesPath: string): AppConfig {
     logLevel: process.env.LOG_LEVEL ?? 'info',
     digest: {
       mode: digestModeRaw,
+    },
+    toolsDigest: {
+      hour: toolsDigestHour,
     },
   };
 }

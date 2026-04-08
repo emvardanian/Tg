@@ -1,4 +1,3 @@
-import { execFile } from 'child_process';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { logger } from '../logger.js';
@@ -10,6 +9,7 @@ import type {
   TelegramPostResult,
   PipelineResult,
 } from './types.js';
+import { execFileAsync, parseJson } from './utils.js';
 
 const SOURCE_TYPE_MAP: Record<string, string> = {
   youtube: 'youtube_transcript',
@@ -21,37 +21,6 @@ const SOURCE_TYPE_MAP: Record<string, string> = {
   search: 'news_article',
   rss: 'blog_post',
 };
-
-function execFileAsync(cmd: string, args: string[], opts: { timeout: number }): Promise<string> {
-  return new Promise((resolve, reject) => {
-    execFile(cmd, args, opts, (err, stdout) => {
-      if (err) reject(err);
-      else resolve(stdout);
-    });
-  });
-}
-
-function parseJson<T>(raw: string): T {
-  const trimmed = raw.trim();
-  try {
-    return JSON.parse(trimmed) as T;
-  } catch {
-    // Find the first balanced JSON object in the output
-    const start = trimmed.indexOf('{');
-    if (start === -1) throw new Error(`No JSON object found: ${raw.slice(0, 300)}`);
-    let depth = 0;
-    let end = -1;
-    for (let i = start; i < trimmed.length; i++) {
-      if (trimmed[i] === '{') depth++;
-      else if (trimmed[i] === '}') {
-        depth--;
-        if (depth === 0) { end = i; break; }
-      }
-    }
-    if (end === -1) throw new Error(`Unclosed JSON object: ${raw.slice(0, 300)}`);
-    return JSON.parse(trimmed.slice(start, end + 1)) as T;
-  }
-}
 
 export class PipelineService {
   private prompts = new Map<string, string>();
