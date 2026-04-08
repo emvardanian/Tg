@@ -65,6 +65,14 @@ export class TelegramPublisher {
     return msg.message_id;
   }
 
+  async sendHtml(chatId: string, html: string): Promise<number> {
+    const msg = await this.bot.api.sendMessage(chatId, html, {
+      parse_mode: 'HTML',
+      link_preview_options: { is_disabled: true },
+    });
+    return msg.message_id;
+  }
+
   async sendNotification(adminChatId: string, text: string): Promise<void> {
     await this.bot.api.sendMessage(adminChatId, text);
   }

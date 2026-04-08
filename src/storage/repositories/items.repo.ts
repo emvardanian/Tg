@@ -103,6 +103,12 @@ export class ItemsRepo {
       .all(limit) as Item[];
   }
 
+  getUnpublishedByCategory(category: string, limit: number): Item[] {
+    return this.db
+      .prepare('SELECT * FROM items WHERE category = ? AND published = 0 ORDER BY classifier_score DESC, discovered_at ASC LIMIT ?')
+      .all(category, limit) as Item[];
+  }
+
   markPublished(id: number, telegramMessageId: number): void {
     this.db
       .prepare("UPDATE items SET published = 1, telegram_message_id = ?, published_at = datetime('now') WHERE id = ?")

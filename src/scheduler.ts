@@ -11,6 +11,7 @@ import type { PipelineService } from './pipeline/pipeline.service.js';
 import type { PublishQueue } from './publisher/queue.js';
 import type { TelegramPublisher } from './publisher/telegram.publisher.js';
 import type { DiscoveryDigest } from './discovery/discovery-digest.js';
+import type { ToolsDigestService } from './pipeline/tools-digest.service.js';
 import { processLinks } from './discovery/link-graph.js';
 import { formatDigest } from './publisher/digest-formatter.js';
 import { backupDatabase } from './backup.js';
@@ -28,6 +29,9 @@ interface SchedulerDeps {
   publishQueue: PublishQueue;
   publisher: TelegramPublisher;
   discoveryDigest: DiscoveryDigest;
+  toolsDigestService: ToolsDigestService;
+  toolsDigestHour: number;
+  channelId: string;
   adminChatId: string;
   digestMode: 'daily' | 'realtime';
   dbPath: string;
@@ -85,6 +89,11 @@ export class Scheduler {
       // Daily digest at 08:05
       this.tasks.push(cron.schedule('5 8 * * *', () => this.sendDailyDigest()));
     }
+
+    // Tools digest: daily at configured hour
+    this.tasks.push(
+      cron.schedule(`0 ${this.deps.toolsDigestHour} * * *`, () => this.sendToolsDigest()),
+    );
 
     // Discovery digest: Sunday at 18:00
     this.tasks.push(cron.schedule('0 18 * * 0', () => this.deps.discoveryDigest.sendWeeklyDigest()));
@@ -280,6 +289,46 @@ export class Scheduler {
     // Mark all as published (no individual Telegram messages in digest mode)
     for (const item of items) {
       this.deps.itemsRepo.markPublished(item.id, 0);
+    }
+  }
+
+  private async sendToolsDigest(): Promise<void> {
+    try {
+      const items = this.deps.itemsRepo.getUnpublishedByCategory('devtools_dx', 20);
+      if (items.length === 0) {
+        logger.info('Tools digest: no unpublished tools items, skipping');
+        return;
+      }
+
+      const sources = items.map((i) => i.source_id);
+      const sourcesMap = new Map(
+        [...new Set(sources)].map((id) => [id, this.deps.sourcesRepo.getById(id)?.name ?? 'unknown']),
+      );
+
+      const result = await this.deps.toolsDigestService.generateDigest(items, sourcesMap);
+      if (!result) {
+        logger.warn('Tools digest: pipeline returned null, skipping');
+        return;
+      }
+
+      const msg = await this.deps.publisher.sendHtml(
+        this.deps.channelId,
+        result.telegramPost,
+      );
+
+      for (const id of result.selectedItemIds) {
+        this.deps.itemsRepo.markPublished(id, msg);
+      }
+      for (const id of result.rejectedItemIds) {
+        this.deps.itemsRepo.markPublished(id, 0);
+      }
+
+      logger.info('Tools digest published', {
+        selected: result.selectedItemIds.length,
+        rejected: result.rejectedItemIds.length,
+      });
+    } catch (err) {
+      logger.error('Tools digest failed', { error: (err as Error).message });
     }
   }
 

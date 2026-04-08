@@ -115,3 +115,10 @@ export interface PipelineResult {
   category: string;
   shouldPin: boolean;
 }
+
+export interface ToolsDigestResult {
+  telegramPost: string;
+  selectedItemIds: number[];
+  rejectedItemIds: number[];
+  itemCount: number;
+}
