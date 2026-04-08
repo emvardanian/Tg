@@ -5,6 +5,7 @@ interface QueueOptions {
   minIntervalMs: number;
   maxPerHour: number;
   maxQueueSize?: number;
+  maxToolsPerDay?: number;
 }
 
 export class PublishQueue {
@@ -14,6 +15,8 @@ export class PublishQueue {
   private started = false;
   private publishedThisHour = 0;
   private hourStart = Date.now();
+  private toolsPublishedToday = 0;
+  private toolsDayStart = this.startOfDay();
 
   constructor(
     private publishFn: (item: Item) => Promise<number>,
@@ -70,6 +73,12 @@ export class PublishQueue {
     }
   }
 
+  private startOfDay(): number {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }
+
   private async processNext(): Promise<void> {
     // Reset hourly counter
     if (Date.now() - this.hourStart > 3600_000) {
@@ -77,16 +86,45 @@ export class PublishQueue {
       this.hourStart = Date.now();
     }
 
+    // Reset daily tools counter
+    const today = this.startOfDay();
+    if (today !== this.toolsDayStart) {
+      this.toolsPublishedToday = 0;
+      this.toolsDayStart = today;
+    }
+
     if (this.items.length === 0 || this.publishedThisHour >= this.options.maxPerHour) {
       return;
     }
 
-    const item = this.items.shift()!;
-    this.enqueuedIds.delete(item.id);
+    const maxTools = this.options.maxToolsPerDay ?? 2;
+
+    // Skip tools items that exceed the daily limit
+    let item: Item | undefined;
+    let skippedTools: Item[] = [];
+    while (this.items.length > 0) {
+      const candidate = this.items.shift()!;
+      this.enqueuedIds.delete(candidate.id);
+      if (candidate.category === 'tools' && this.toolsPublishedToday >= maxTools) {
+        skippedTools.push(candidate);
+        continue;
+      }
+      item = candidate;
+      break;
+    }
+
+    // Re-enqueue skipped tools items (they stay for tomorrow)
+    for (const skipped of skippedTools) {
+      this.enqueuedIds.add(skipped.id);
+      this.items.push(skipped);
+    }
+
+    if (!item) return;
 
     try {
       await this.publishFn(item);
       this.publishedThisHour++;
+      if (item.category === 'tools') this.toolsPublishedToday++;
     } catch (err) {
       const retryAfterMs = this.extractRetryAfterMs(err);
       if (retryAfterMs !== null) {

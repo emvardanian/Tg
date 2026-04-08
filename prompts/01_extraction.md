@@ -22,6 +22,7 @@ RULES:
 3. Preserve technical precision — exact version numbers, model names, benchmark scores, dates.
 4. If the content is vague or lacks substance, reflect that honestly in the extraction. An empty or sparse extraction is a valid output.
 5. Do NOT summarize. Do NOT analyze. Do NOT evaluate. Just extract and categorize.
+6. Extract the article's main image URL. Check in this order: og:image meta tag, twitter:image meta tag, first significant <img> in the article body (skip icons, avatars, and images smaller than 200px). Return null if no suitable image found.
 ```
 
 ## Input Format
@@ -116,7 +117,9 @@ Respond with ONLY a valid JSON object. No markdown fences, no preamble, no expla
       "word_count_approximate": 0,
       "has_original_research": false,
       "is_primarily_promotional": false
-    }
+    },
+
+    "image_url": "URL of the article's main image (og:image, twitter:image, or first significant <img>), or null if none found"
   }
 }
 ```

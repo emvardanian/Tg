@@ -61,9 +61,9 @@ export class Scheduler {
       this.tasks.push(cron.schedule('0 8 * * *', () => this.runCollector('youtube')));
     }
 
-    // ProductHunt: daily at 09:00
+    // ProductHunt: weekly Sunday at 10:00
     if (collectors.has('producthunt')) {
-      this.tasks.push(cron.schedule('0 9 * * *', () => this.runCollector('producthunt')));
+      this.tasks.push(cron.schedule('0 10 * * 0', () => this.runCollector('producthunt')));
     }
 
     // GitHub Trending: daily at 10:00
@@ -234,6 +234,8 @@ export class Scheduler {
         result.compositeScore / 5,
         result.category,
         result.shouldPin,
+        result.captionText,
+        result.imageUrl,
       );
       return;
     }

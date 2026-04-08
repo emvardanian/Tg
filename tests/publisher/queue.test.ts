@@ -142,4 +142,45 @@ describe('PublishQueue', () => {
 
     queue.stop();
   });
+
+  it('limits tools category to maxToolsPerDay', async () => {
+    const publishFn = vi.fn().mockResolvedValue(1);
+    const queue = new PublishQueue(publishFn, { minIntervalMs: 10, maxPerHour: 15, maxToolsPerDay: 2 });
+
+    queue.enqueue({ id: 1, score: 5, category: 'tools' } as any);
+    queue.enqueue({ id: 2, score: 4, category: 'tools' } as any);
+    queue.enqueue({ id: 3, score: 3, category: 'tools' } as any); // should be skipped
+    queue.enqueue({ id: 4, score: 2, category: 'ai_ml' } as any); // non-tools, should publish
+
+    queue.start();
+    await vi.advanceTimersByTimeAsync(200);
+
+    expect(publishFn).toHaveBeenCalledTimes(3);
+    const publishedIds = publishFn.mock.calls.map((c: any) => c[0].id);
+    expect(publishedIds).toContain(1);
+    expect(publishedIds).toContain(2);
+    expect(publishedIds).toContain(4);
+    expect(publishedIds).not.toContain(3);
+
+    // The skipped tools item stays in queue
+    expect(queue.size).toBe(1);
+
+    queue.stop();
+  });
+
+  it('publishes non-tools items even when tools limit is reached', async () => {
+    const publishFn = vi.fn().mockResolvedValue(1);
+    const queue = new PublishQueue(publishFn, { minIntervalMs: 10, maxPerHour: 15, maxToolsPerDay: 0 });
+
+    queue.enqueue({ id: 1, score: 5, category: 'tools' } as any);
+    queue.enqueue({ id: 2, score: 3, category: 'ai_ml' } as any);
+
+    queue.start();
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(publishFn).toHaveBeenCalledTimes(1);
+    expect(publishFn.mock.calls[0][0].id).toBe(2);
+
+    queue.stop();
+  });
 });

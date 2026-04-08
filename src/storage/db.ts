@@ -120,6 +120,8 @@ export function createDatabase(dbPath: string): Database {
   if (!cols.includes('comments')) db.exec('ALTER TABLE items ADD COLUMN comments INTEGER');
   if (!cols.includes('pipeline_post')) db.exec('ALTER TABLE items ADD COLUMN pipeline_post TEXT');
   if (!cols.includes('should_pin')) db.exec('ALTER TABLE items ADD COLUMN should_pin INTEGER DEFAULT 0');
+  if (!cols.includes('pipeline_caption')) db.exec('ALTER TABLE items ADD COLUMN pipeline_caption TEXT');
+  if (!cols.includes('pipeline_image_url')) db.exec('ALTER TABLE items ADD COLUMN pipeline_image_url TEXT');
 
   return db;
 }

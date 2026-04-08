@@ -58,6 +58,7 @@ Respond with ONLY a valid JSON object. No markdown fences, no preamble, no expla
   "telegram_post": {
     "format": "html",
     "text": "the complete formatted Telegram message — see template below",
+    "caption_text": "short version of the post for use as a photo caption (max 1024 characters, HTML). Must include headline + key info + source link + tags. Omit sections that don't fit. null if you cannot make a meaningful caption under 1024 chars.",
     "metadata": {
       "composite_score": 0.0,
       "category": "category from analysis",
@@ -152,6 +153,7 @@ Keep tags in English, lowercase, no hyphens (Telegram hashtag format): `#claude 
   "telegram_post": {
     "format": "html",
     "text": "🔥 <b>4.5/5</b> — AI/ML\n\n<b>Claude 4 Opus вийшов: 92% SWE-bench, нативний tool use, на 30% дешевше</b>\n\nAnthropic випустили Claude 4 Opus — 92% на SWE-bench (порівняно з 72% у Claude 3.5 Sonnet). Модель підтримує нативний tool use без prompt engineering: передаєш tools як JSON schema, модель сама обробляє виклики і парсинг. Ціна: $12/M input, $36/M output — приблизно на 30% дешевше за попередній Opus. Контекстне вікно — 200K. Вже доступно через API; Claude.ai — протягом 48 годин.\n\n💡 <b>Що робити:</b> Вже доступно через API. Оновити SDK: <code>pip install anthropic --upgrade</code>. Якщо використовуєте tool use — протестуйте нативний формат, він прибирає XML-парсинг. Гайд міграції: docs.anthropic.com/migrate-v4\n\n🔗 <a href=\"https://anthropic.com/blog/claude-4\">Джерело</a>\n\n#claude #anthropic #llmrelease #apiupdate #benchmarks",
+    "caption_text": "🔥 <b>4.5/5</b> — AI/ML\n\n<b>Claude 4 Opus вийшов: 92% SWE-bench, нативний tool use, на 30% дешевше</b>\n\nAnthropic випустили Claude 4 Opus — 92% SWE-bench, нативний tool use, $12/M input. На 30% дешевше.\n\n🔗 <a href=\"https://anthropic.com/blog/claude-4\">Джерело</a>\n\n#claude #anthropic #llmrelease",
     "metadata": {
       "composite_score": 4.5,
       "category": "ai_ml",
@@ -186,6 +188,16 @@ Allowed tags in Telegram Bot API HTML mode:
 
 Special characters that MUST be escaped in the `text` field for Telegram HTML: `&` → `&amp;`, `<` → `&lt;`, `>` → `&gt;` (only outside of HTML tags).
 
+## `caption_text` Rules
+
+The `caption_text` field is a shortened version of the post for use as a photo caption. Telegram limits captions to 1024 characters.
+
+- MUST be under 1024 characters (count the final HTML string)
+- Include: score line, headline, 1-2 sentence summary, source link, top 3 tags
+- Omit: flags_line, confidence_line, actionable_conclusion if they don't fit
+- If the post is already under 1024 characters, `caption_text` can equal `text`
+- Set to `null` only if you cannot produce a meaningful caption under 1024 chars
+
 ## Quality Checklist
 
 Before outputting, verify:
@@ -199,3 +211,4 @@ Before outputting, verify:
 - [ ] Score emoji matches the composite_score range
 - [ ] Confidence line is omitted for high confidence
 - [ ] Flags line is omitted if no flags are true
+- [ ] `caption_text` is under 1024 characters or null

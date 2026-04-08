@@ -48,6 +48,7 @@ export interface ExtractionResult {
       has_original_research: boolean;
       is_primarily_promotional: boolean;
     };
+    image_url: string | null;
   };
 }
 
@@ -94,6 +95,7 @@ export interface TelegramPostResult {
   telegram_post: {
     format: string;
     text: string;
+    caption_text: string | null;
     metadata: {
       composite_score: number;
       category: string;
@@ -107,6 +109,8 @@ export interface TelegramPostResult {
 
 export interface PipelineResult {
   telegramPost: string;
+  captionText: string | null;
+  imageUrl: string | null;
   compositeScore: number;
   category: string;
   shouldPin: boolean;

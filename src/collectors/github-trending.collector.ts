@@ -3,8 +3,8 @@ import type { Collector, CollectedItem } from './base.collector.js';
 import { RateLimitError } from './base.collector.js';
 import type { Source } from '../storage/repositories/sources.repo.js';
 
-const MIN_TOTAL_STARS = 10_000;
-const MIN_STARS_TODAY = 300;
+const MIN_TOTAL_STARS = 25_000;
+const MIN_STARS_TODAY = 500;
 
 export class GitHubTrendingCollector implements Collector {
   name = 'github-trending';

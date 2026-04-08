@@ -166,6 +166,23 @@ composite = (value_density × 0.30) + (relevance × 0.30) + (timeliness × 0.20)
 
 Round to 1 decimal place. Range: 1.0 to 5.0.
 
+### AI Content Boost
+
+After calculating the base composite score, apply this adjustment:
+
+If the content **directly** concerns any of the following:
+- New AI model releases or updates (Claude, GPT, Gemini, Llama, etc.)
+- New AI-powered developer tools (coding assistants, AI IDEs, AI agents)
+- Novel AI/ML approaches, architectures, or training techniques
+- AI benchmark results, evaluations, or comparisons
+
+Then add **+0.5** to the composite score. The final score must not exceed 5.0.
+
+This boost does NOT apply to:
+- Generic "AI will change everything" opinion pieces
+- Content that merely mentions AI as a buzzword
+- Marketing announcements without technical substance
+
 ## Anti-Patterns to Avoid
 
 1. **Score inflation**: Do not give 4/5 relevance just because the topic is "tech". It must match the SPECIFIC user profile.

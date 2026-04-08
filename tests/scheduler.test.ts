@@ -23,25 +23,38 @@ describe('Scheduler', () => {
       },
       itemsRepo: {
         insertIfNew: vi.fn().mockReturnValue({ id: 1, title: 'New Item' }),
+        findByTitle: vi.fn().mockReturnValue(null),
+        findByNormalizedUrl: vi.fn().mockReturnValue(null),
         updateClassification: vi.fn(),
+        savePipelineResult: vi.fn(),
         getUnpublished: vi.fn().mockReturnValue([]),
-        saveSummary: vi.fn(),
+        markPublished: vi.fn(),
       },
       linksRepo: {},
-      usageRepo: { canUseAI: vi.fn().mockReturnValue(true) },
+      usageRepo: {},
       feedbackRepo: { getSourceScores: vi.fn().mockReturnValue([]) },
       collectors: new Map(),
       heuristicClassifier: new HeuristicClassifier(),
-      aiClassifier: { classify: vi.fn().mockResolvedValue({ category: 'ai', contentType: 'article' }), generateSummary: vi.fn().mockResolvedValue(null) },
+      pipelineService: {
+        process: vi.fn().mockResolvedValue({
+          telegramPost: 'post text',
+          captionText: null,
+          imageUrl: null,
+          compositeScore: 3.5,
+          category: 'ai_ml',
+          shouldPin: false,
+        }),
+      },
       publishQueue: { enqueue: vi.fn(), updateSourceScores: vi.fn() },
       publisher: { sendNotification: vi.fn() },
       discoveryDigest: { sendWeeklyDigest: vi.fn() },
       adminChatId: '123',
-      monthlyLimitUsd: 5,
+      digestMode: 'realtime',
+      dbPath: ':memory:',
     };
   });
 
-  it('classifies with heuristic when confidence >= 0.5', async () => {
+  it('saves pipeline result when pipeline succeeds', async () => {
     const mockCollector = {
       name: 'rss',
       collect: vi.fn().mockResolvedValue([{
@@ -50,20 +63,17 @@ describe('Scheduler', () => {
       }]),
     };
     mockDeps.collectors.set('rss', mockCollector);
-    // Source has category 'it' → heuristic confidence = 0.7
     scheduler = new Scheduler(mockDeps);
     await (scheduler as any).runCollector('rss');
 
-    expect(mockDeps.itemsRepo.updateClassification).toHaveBeenCalledWith(
-      1,
-      expect.objectContaining({ classifiedBy: 'heuristic' }),
+    expect(mockDeps.pipelineService.process).toHaveBeenCalled();
+    expect(mockDeps.itemsRepo.savePipelineResult).toHaveBeenCalledWith(
+      1, 'post text', 3.5 / 5, 'ai_ml', false, null, null,
     );
   });
 
-  it('falls back to AI when heuristic confidence < 0.5', async () => {
-    mockDeps.sourcesRepo.getByType.mockReturnValue([
-      { id: 1, name: 'Test', type: 'rss', category: null },
-    ]);
+  it('falls back to heuristic when pipeline returns null', async () => {
+    mockDeps.pipelineService.process.mockResolvedValue(null);
     const mockCollector = {
       name: 'rss',
       collect: vi.fn().mockResolvedValue([{
@@ -75,15 +85,14 @@ describe('Scheduler', () => {
     scheduler = new Scheduler(mockDeps);
     await (scheduler as any).runCollector('rss');
 
-    expect(mockDeps.aiClassifier.classify).toHaveBeenCalled();
+    expect(mockDeps.itemsRepo.updateClassification).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ classifiedBy: 'heuristic' }),
+    );
   });
 
-  it('uses heuristic when AI budget exhausted', async () => {
-    mockDeps.usageRepo.canUseAI.mockReturnValue(false);
-    mockDeps.aiClassifier.classify.mockResolvedValue(null);
-    mockDeps.sourcesRepo.getByType.mockReturnValue([
-      { id: 1, name: 'Test', type: 'rss', category: null },
-    ]);
+  it('records fetch error when pipeline throws', async () => {
+    mockDeps.pipelineService.process.mockRejectedValue(new Error('API error'));
     const mockCollector = {
       name: 'rss',
       collect: vi.fn().mockResolvedValue([{
@@ -95,10 +104,7 @@ describe('Scheduler', () => {
     scheduler = new Scheduler(mockDeps);
     await (scheduler as any).runCollector('rss');
 
-    expect(mockDeps.itemsRepo.updateClassification).toHaveBeenCalledWith(
-      1,
-      expect.objectContaining({ classifiedBy: 'heuristic' }),
-    );
+    expect(mockDeps.sourcesRepo.recordFetchError).toHaveBeenCalledWith(1);
   });
 
   it('increments fetch_errors on collector error', async () => {
@@ -125,45 +131,26 @@ describe('Scheduler', () => {
     expect(mockDeps.sourcesRepo.recordFetchError).not.toHaveBeenCalled();
   });
 
-  it('generates summary for long articles after classification', async () => {
-    const saveSummarySpy = vi.spyOn(mockDeps.itemsRepo, 'saveSummary');
-    vi.spyOn(mockDeps.aiClassifier, 'generateSummary').mockResolvedValue('Резюме статті.');
-    vi.spyOn(mockDeps.heuristicClassifier, 'classify').mockReturnValue({
-      category: 'it', contentType: 'article', confidence: 0.3,
-    });
-
+  it('processes item through pipeline with correct input', async () => {
     const collected = {
-      externalId: 'sum-test-1',
-      url: 'https://example.com/long',
-      title: 'Long Title',
+      externalId: 'pipe-1',
+      url: 'https://example.com/article',
+      title: 'Pipeline Test',
       contentSnippet: 'snippet text here',
-      wordCount: 600,
       meta: {},
     } as any;
+    const source = { id: 1, name: 'Test', type: 'rss', category: 'it' } as any;
 
     scheduler = new Scheduler(mockDeps);
-    await (scheduler as any).classifyItem(1, collected, { id: 1, name: 'Test', type: 'rss', category: 'it' });
+    await (scheduler as any).processItem(1, collected, source);
 
-    expect(saveSummarySpy).toHaveBeenCalledWith(1, 'Резюме статті.');
-  });
-
-  it('does not generate summary for short articles', async () => {
-    const saveSummarySpy = vi.spyOn(mockDeps.itemsRepo, 'saveSummary');
-    vi.spyOn(mockDeps.aiClassifier, 'generateSummary').mockResolvedValue('Summary.');
-
-    const collected = {
-      externalId: 'sum-test-2',
-      url: 'https://example.com/short',
-      title: 'Short Title',
-      contentSnippet: 'brief',
-      wordCount: 200,
-      meta: {},
-    } as any;
-
-    scheduler = new Scheduler(mockDeps);
-    await (scheduler as any).classifyItem(1, collected, { id: 1, name: 'Test', type: 'rss', category: 'it' });
-
-    expect(saveSummarySpy).not.toHaveBeenCalled();
+    expect(mockDeps.pipelineService.process).toHaveBeenCalledWith({
+      url: 'https://example.com/article',
+      title: 'Pipeline Test',
+      snippet: 'snippet text here',
+      sourceType: 'rss',
+      author: 'Test',
+    });
   });
 
   it('updates source scores before enqueuing in publishPending', async () => {

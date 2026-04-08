@@ -37,6 +37,25 @@ export class TelegramPublisher {
       parseMode = undefined;
     }
 
+    // Use sendPhoto when pipeline produced an image URL
+    if (item.pipeline_image_url && item.pipeline_post) {
+      const caption = item.pipeline_caption ?? item.pipeline_post.slice(0, 1024);
+      try {
+        const msg = await this.bot.api.sendPhoto(this.channelId, item.pipeline_image_url, {
+          caption,
+          parse_mode: 'HTML',
+        });
+        logger.info('Published item with photo', { itemId: item.id, messageId: msg.message_id });
+        return msg.message_id;
+      } catch (err) {
+        logger.warn('sendPhoto failed, falling back to sendMessage', {
+          itemId: item.id,
+          error: (err as Error).message,
+        });
+        // Fall through to sendMessage
+      }
+    }
+
     const msg = await this.bot.api.sendMessage(this.channelId, text, {
       parse_mode: parseMode,
       link_preview_options: { is_disabled: true },

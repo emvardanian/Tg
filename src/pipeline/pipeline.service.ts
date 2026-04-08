@@ -113,7 +113,8 @@ export class PipelineService {
 
       const extractionRaw = await this.runClaude(this.prompts.get('01_extraction')!, sourceXml, 'WebFetch');
       const extraction = parseJson<ExtractionResult>(extractionRaw);
-      logger.debug('Pipeline step 1 done', { url: input.url });
+      const imageUrl = extraction.extraction.image_url || null;
+      logger.debug('Pipeline step 1 done', { url: input.url, imageUrl });
 
       // ── Step 2: Analysis ────────────────────────────────────────────────────
       const analysisInput = [
@@ -168,6 +169,8 @@ export class PipelineService {
 
       return {
         telegramPost: post.telegram_post.text,
+        captionText: post.telegram_post.caption_text || null,
+        imageUrl,
         compositeScore: post.telegram_post.metadata.composite_score,
         category: post.telegram_post.metadata.category,
         shouldPin: post.telegram_post.metadata.should_pin,
