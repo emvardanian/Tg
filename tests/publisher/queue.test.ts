@@ -147,9 +147,9 @@ describe('PublishQueue', () => {
     const publishFn = vi.fn().mockResolvedValue(1);
     const queue = new PublishQueue(publishFn, { minIntervalMs: 10, maxPerHour: 15, maxToolsPerDay: 2 });
 
-    queue.enqueue({ id: 1, score: 5, category: 'tools' } as any);
-    queue.enqueue({ id: 2, score: 4, category: 'tools' } as any);
-    queue.enqueue({ id: 3, score: 3, category: 'tools' } as any); // should be skipped
+    queue.enqueue({ id: 1, score: 5, category: 'devtools_dx' } as any);
+    queue.enqueue({ id: 2, score: 4, category: 'devtools_dx' } as any);
+    queue.enqueue({ id: 3, score: 3, category: 'devtools_dx' } as any); // should be skipped
     queue.enqueue({ id: 4, score: 2, category: 'ai_ml' } as any); // non-tools, should publish
 
     queue.start();
@@ -172,7 +172,7 @@ describe('PublishQueue', () => {
     const publishFn = vi.fn().mockResolvedValue(1);
     const queue = new PublishQueue(publishFn, { minIntervalMs: 10, maxPerHour: 15, maxToolsPerDay: 0 });
 
-    queue.enqueue({ id: 1, score: 5, category: 'tools' } as any);
+    queue.enqueue({ id: 1, score: 5, category: 'devtools_dx' } as any);
     queue.enqueue({ id: 2, score: 3, category: 'ai_ml' } as any);
 
     queue.start();

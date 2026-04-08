@@ -105,7 +105,7 @@ export class PublishQueue {
     while (this.items.length > 0) {
       const candidate = this.items.shift()!;
       this.enqueuedIds.delete(candidate.id);
-      if (candidate.category === 'tools' && this.toolsPublishedToday >= maxTools) {
+      if (candidate.category === 'devtools_dx' && this.toolsPublishedToday >= maxTools) {
         skippedTools.push(candidate);
         continue;
       }
@@ -124,7 +124,7 @@ export class PublishQueue {
     try {
       await this.publishFn(item);
       this.publishedThisHour++;
-      if (item.category === 'tools') this.toolsPublishedToday++;
+      if (item.category === 'devtools_dx') this.toolsPublishedToday++;
     } catch (err) {
       const retryAfterMs = this.extractRetryAfterMs(err);
       if (retryAfterMs !== null) {
@@ -139,6 +139,7 @@ export class PublishQueue {
     }
 
     if (this.items.length > 0 && this.publishedThisHour < this.options.maxPerHour) {
+      if (this.timer) clearTimeout(this.timer);
       this.timer = setTimeout(() => this.processNext(), this.options.minIntervalMs);
     }
   }
